@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { companyAgeInYears } from "@/data/company";
 import {
   localBusinessSchema,
   productDescription,
@@ -76,5 +77,14 @@ describe("seo helpers", () => {
     expect(hours).toContainEqual(
       expect.objectContaining({ opens: "07:30", closes: "11:30" }),
     );
+  });
+
+  it("uses the registered postal code for Rua Monteiro Lobato", () => {
+    expect(localBusinessSchema().address.postalCode).toBe("15076-080");
+  });
+
+  it("counts company age from the CNPJ opening date", () => {
+    expect(companyAgeInYears(new Date("2026-08-03T12:00:00-03:00"))).toBe(14);
+    expect(companyAgeInYears(new Date("2026-08-04T12:00:00-03:00"))).toBe(15);
   });
 });

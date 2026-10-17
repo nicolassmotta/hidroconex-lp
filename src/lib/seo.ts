@@ -1,5 +1,5 @@
 import { catalogCategories, getCategoryMeta, type CatalogCategory } from "@/data/categories";
-import { businessHours, formatTime } from "@/data/company";
+import { businessHours, formatTime, FOUNDED_AT } from "@/data/company";
 import type { CatalogItem } from "@/lib/catalog";
 import { absoluteUrl, categoryPath, productPath, SITE_URL } from "@/lib/siteUrls";
 
@@ -198,6 +198,7 @@ export function organizationSchema() {
     email: EMAIL,
     telephone: TELEPHONE,
     taxID: "14.395.617/0001-68",
+    foundingDate: FOUNDED_AT,
     contactPoint: {
       "@type": "ContactPoint",
       contactType: "sales",
@@ -237,7 +238,7 @@ export function localBusinessSchema() {
       streetAddress: "R. Monteiro Lobato, 750 - Distrito Industrial Campo Verdi",
       addressLocality: "São José do Rio Preto",
       addressRegion: "SP",
-      postalCode: "15076-000",
+      postalCode: "15076-080",
       addressCountry: "BR",
     },
     // O intervalo de almoço fica de fora para o Google não mostrar "aberto" nesse horário.
