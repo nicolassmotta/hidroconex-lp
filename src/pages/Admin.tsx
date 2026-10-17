@@ -227,7 +227,7 @@ const AdminPage = () => {
     setIsLoading(true);
     setLoadError(null);
     try {
-      setProducts(await fetchCatalog({ fallbackToStatic: false }));
+      setProducts(await fetchCatalog({ fallbackToStatic: false, fresh: true }));
     } catch (error) {
       const message = getErrorMessage(error, "Erro ao carregar catálogo.");
       setProducts([]);

@@ -24,7 +24,11 @@ const PRELOADED_FONTS = /^(inter|montserrat)-latin-wght-normal-[\w-]+\.woff2$/;
 
 async function fetchPublishedCatalog(url) {
   try {
-    const response = await fetch(url, {
+    // fresh=1 pula o cache da CDN: o build disparado pelo admin precisa da edição recém-salva.
+    const freshUrl = new URL(url);
+    freshUrl.searchParams.set("fresh", "1");
+
+    const response = await fetch(freshUrl, {
       headers: { Accept: "application/json" },
       signal: AbortSignal.timeout(CATALOG_TIMEOUT_MS),
     });

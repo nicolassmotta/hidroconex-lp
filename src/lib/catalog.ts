@@ -20,6 +20,8 @@ export interface CatalogItem {
 
 interface FetchCatalogOptions {
   fallbackToStatic?: boolean;
+  /** Ignora o cache da CDN (o admin precisa ver a edição que acabou de salvar). */
+  fresh?: boolean;
 }
 
 export interface AppConfig {
@@ -178,10 +180,10 @@ function catalogErrorFromResponse(status: number, data: unknown): Error {
 }
 
 export async function fetchCatalog(options: FetchCatalogOptions = {}): Promise<CatalogItem[]> {
-  const { fallbackToStatic = true } = options;
+  const { fallbackToStatic = true, fresh = false } = options;
 
   try {
-    const response = await fetch("/api/catalog", {
+    const response = await fetch(fresh ? "/api/catalog?fresh=1" : "/api/catalog", {
       headers: { Accept: "application/json" },
     });
 

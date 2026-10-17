@@ -14,6 +14,13 @@ describe("server helpers", () => {
     expect(__test__.routeUsesDatabase("POST", "/api/monitoring/failures")).toBe(true);
   });
 
+  it("caches the public catalog at the CDN but not fresh reads", () => {
+    const request = (url) => ({ url, headers: { host: "localhost" } });
+
+    expect(__test__.catalogCacheControl(request("/api/catalog"))).toContain("s-maxage=60");
+    expect(__test__.catalogCacheControl(request("/api/catalog?fresh=1"))).toBe("no-store");
+  });
+
   it("validates product payloads", () => {
     expect(
       __test__.validateProductPayload({

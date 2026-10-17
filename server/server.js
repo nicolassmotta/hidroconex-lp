@@ -200,12 +200,13 @@ function setSecurityHeaders(res) {
   }
 }
 
-function sendJson(res, statusCode, payload) {
+function sendJson(res, statusCode, payload, headers = {}) {
   const body = JSON.stringify(payload);
   setSecurityHeaders(res);
   res.writeHead(statusCode, {
     "Content-Type": "application/json; charset=utf-8",
     "Content-Length": Buffer.byteLength(body),
+    ...headers,
   });
   res.end(body);
 }
@@ -1207,7 +1208,7 @@ async function handleApi(req, res, pathname) {
 
   if (req.method === "GET" && pathname === "/api/catalog") {
     const products = await readCatalog();
-    sendJson(res, 200, { products });
+    sendJson(res, 200, { products }, { "Cache-Control": catalogCacheControl(req) });
     return;
   }
 
@@ -1386,6 +1387,15 @@ async function handleApi(req, res, pathname) {
   }
 
   sendError(res, 404, "Rota não encontrada.");
+}
+
+// O catálogo público fica 1 min na CDN da Vercel. O admin e o build pedem ?fresh=1
+// e leem direto do banco, para não pegar a versão anterior a uma edição.
+const CATALOG_CDN_CACHE = "public, max-age=0, s-maxage=60, stale-while-revalidate=600";
+
+function catalogCacheControl(req) {
+  const url = new URL(req.url || "/", `http://${req.headers.host || "localhost"}`);
+  return url.searchParams.has("fresh") ? "no-store" : CATALOG_CDN_CACHE;
 }
 
 function routeUsesDatabase(method, pathname) {
@@ -1574,6 +1584,7 @@ function redactMongoUri(uri) {
 }
 
 export const __test__ = {
+  catalogCacheControl,
   cleanText,
   decodeBase64Image,
   detectImageType,

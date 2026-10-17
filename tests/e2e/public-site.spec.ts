@@ -102,7 +102,7 @@ test("authenticated admin renders monitoring and catalog controls", async ({ pag
     });
   });
 
-  await page.route("**/api/catalog", async (route) => {
+  await page.route(/\/api\/catalog(\?|$)/, async (route) => {
     await route.fulfill({
       contentType: "application/json",
       body: JSON.stringify({
