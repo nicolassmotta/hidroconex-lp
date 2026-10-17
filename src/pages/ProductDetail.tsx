@@ -1,16 +1,21 @@
-import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Factory, MessageCircle, Ruler, ShieldCheck } from "lucide-react";
+import { useMemo } from "react";
+import { Factory, MessageCircle, Ruler, ShieldCheck } from "lucide-react";
+import Breadcrumbs from "@/components/Breadcrumbs";
 import Footer from "@/components/Footer";
 import Header from "@/components/Header";
 import ProductImageFrame from "@/components/ProductImageFrame";
 import Seo from "@/components/Seo";
 import WhatsAppButton from "@/components/WhatsAppButton";
 import { getCategoryMeta } from "@/data/categories";
-import { CatalogItem, fetchCatalog, resolveCatalogImage } from "@/lib/catalog";
+import { useCatalog } from "@/hooks/useCatalog";
+import { productQuoteUrl, resolveCatalogImage } from "@/lib/catalog";
 import {
   breadcrumbSchema,
   organizationSchema,
+  productDescription,
+  productImageAlt,
   productSchema,
+  productSeoTitle,
 } from "@/lib/seo";
 import { categoryPath, productPath, productSlug } from "@/lib/siteUrls";
 
@@ -18,42 +23,8 @@ interface ProductDetailProps {
   slug: string;
 }
 
-function quoteUrl(product: CatalogItem) {
-  const message = `Olá! Vim pelo site da Hidroconex e gostaria de solicitar orçamento do produto: ${product.model}.`;
-  return `https://wa.me/5517997726171?text=${encodeURIComponent(message)}`;
-}
-
 const ProductDetail = ({ slug }: ProductDetailProps) => {
-  const [products, setProducts] = useState<CatalogItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    fetchCatalog()
-      .then((items) => {
-        if (isMounted) {
-          setProducts(items);
-          setLoadError(null);
-        }
-      })
-      .catch((error) => {
-        if (isMounted) {
-          setProducts([]);
-          setLoadError(error instanceof Error ? error.message : "Não foi possível carregar o produto.");
-        }
-      })
-      .finally(() => {
-        if (isMounted) {
-          setIsLoading(false);
-        }
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+  const { products, isLoading, error: loadError } = useCatalog();
 
   const product = useMemo(
     () => products.find((item) => productSlug(item) === slug),
@@ -67,35 +38,30 @@ const ProductDetail = ({ slug }: ProductDetailProps) => {
         .slice(0, 3)
     : [];
 
-  const title = product
-    ? `${product.model} | Hidroconex`
-    : "Produto Hidroconex";
+  const title = product ? productSeoTitle(product) : "Produto Hidroconex";
   const description = product
-    ? product.description ||
-      `${product.model} da linha ${product.subCategory.toLowerCase()} para ${product.mainCategory.toLowerCase()}. Solicite orçamento técnico com a Hidroconex.`
+    ? productDescription(product)
     : "Detalhes de produto do catálogo Hidroconex.";
+  const breadcrumbs = [
+    { name: "Início", path: "/" },
+    { name: "Catálogo", path: "/catalogo" },
+    ...(category ? [{ name: category.seoTitle, path: categoryPath(category) }] : []),
+    ...(product ? [{ name: product.model, path: productPath(product) }] : []),
+  ];
 
   return (
     <div className="min-h-screen bg-background">
       <Seo
         title={title}
         description={description}
-        path={product ? productPath(product) : `/produto/${slug}`}
-        image={image}
-        type="product"
+        path={product ? productPath(product) : null}
+        image={product ? image : undefined}
+        imageAlt={product ? productImageAlt(product) : undefined}
+        type={product ? "product" : "website"}
         robots={!isLoading && !product ? "noindex,follow" : "index,follow"}
         structuredData={
           product
-            ? [
-                organizationSchema(),
-                productSchema(product, image),
-                breadcrumbSchema([
-                  { name: "Início", path: "/" },
-                  { name: "Catálogo", path: "/catalogo" },
-                  ...(category ? [{ name: category.title, path: categoryPath(category) }] : []),
-                  { name: product.model, path: productPath(product) },
-                ]),
-              ]
+            ? [organizationSchema(), productSchema(product, image), breadcrumbSchema(breadcrumbs)]
             : [organizationSchema()]
         }
       />
@@ -105,13 +71,7 @@ const ProductDetail = ({ slug }: ProductDetailProps) => {
       <main>
         <section className="bg-gradient-navy pt-32 pb-16 text-secondary-foreground">
           <div className="section-container">
-            <a
-              href={category ? categoryPath(category) : "/catalogo"}
-              className="mb-8 inline-flex items-center gap-2 text-secondary-foreground/75 transition-colors hover:text-primary"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Voltar para o catálogo
-            </a>
+            <Breadcrumbs items={breadcrumbs} />
 
             {isLoading ? (
               <div className="py-12 text-secondary-foreground/75">Carregando produto...</div>
@@ -126,7 +86,7 @@ const ProductDetail = ({ slug }: ProductDetailProps) => {
               <div className="grid items-center gap-10 lg:grid-cols-[0.95fr_1.05fr]">
                 <ProductImageFrame
                   src={image}
-                  alt={product.model}
+                  alt={productImageAlt(product)}
                   loading="eager"
                   className="h-[360px] rounded-lg border border-white/10 p-8 shadow-2xl lg:h-[480px]"
                   imageClassName="drop-shadow-xl"
@@ -134,10 +94,13 @@ const ProductDetail = ({ slug }: ProductDetailProps) => {
 
                 <div>
                   <span className="mb-4 inline-block text-sm font-semibold uppercase tracking-wider text-primary">
-                    {category?.title || product.subCategory}
+                    {category?.seoTitle || product.subCategory}
                   </span>
                   <h1 className="mb-6 text-4xl font-bold leading-tight md:text-6xl">
                     {product.model}
+                    <span className="mt-3 block font-body text-xl font-semibold tracking-normal text-secondary-foreground/70 md:text-2xl">
+                      para {product.mainCategory.toLowerCase()}
+                    </span>
                   </h1>
                   <p className="mb-8 max-w-2xl text-lg leading-relaxed text-secondary-foreground/75">
                     {description}
@@ -163,7 +126,7 @@ const ProductDetail = ({ slug }: ProductDetailProps) => {
 
                   <div className="flex flex-col gap-3 sm:flex-row">
                     <a
-                      href={quoteUrl(product)}
+                      href={productQuoteUrl(product)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="btn-hero inline-flex items-center justify-center gap-2"
@@ -196,8 +159,8 @@ const ProductDetail = ({ slug }: ProductDetailProps) => {
                     Especificação orientada ao uso industrial
                   </h2>
                   <p className="text-muted-foreground">
-                    A equipe técnica confirma medida, rosca, material e aplicação antes da
-                    fabricação ou separação do item.
+                    {category ? `${category.description} ` : ""}A equipe técnica confirma
+                    medida, rosca, material e aplicação antes da fabricação ou separação do item.
                   </p>
                 </div>
 
@@ -232,7 +195,7 @@ const ProductDetail = ({ slug }: ProductDetailProps) => {
                       >
                         <ProductImageFrame
                           src={resolveCatalogImage(related)}
-                          alt={related.model}
+                          alt={productImageAlt(related)}
                           className="h-48 p-5"
                         />
                         <div className="p-5">

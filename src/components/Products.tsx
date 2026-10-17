@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { ArrowRight } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ProductImageFrame from "@/components/ProductImageFrame";
 import { catalogCategoryGroups, CatalogCategory } from "@/data/categories";
-import { CatalogItem, fetchCatalog, resolveCatalogImage } from "@/lib/catalog";
+import { useCatalog } from "@/hooks/useCatalog";
+import { CatalogItem, resolveCatalogImage } from "@/lib/catalog";
 import { categoryPath } from "@/lib/siteUrls";
 
 function getCategoryThumbnail(categoryId: string, products: CatalogItem[]): string {
@@ -27,8 +28,7 @@ const ProductCard = ({
   >
     <ProductImageFrame
       src={image}
-      alt={category.title}
-      loading="eager"
+      alt={category.seoTitle}
       className="h-64 w-full p-7"
       imageClassName="transition-transform duration-500 ease-out group-hover:scale-110"
     />
@@ -49,21 +49,7 @@ const ProductCard = ({
 );
 
 const Products = () => {
-  const [products, setProducts] = useState<CatalogItem[]>([]);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    fetchCatalog().then((items) => {
-      if (isMounted) {
-        setProducts(items);
-      }
-    });
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+  const { products } = useCatalog();
 
   const categoryCounts = useMemo(() => {
     return products.reduce<Record<string, number>>((accumulator, product) => {

@@ -16,7 +16,8 @@ const Hero = () => {
         <img
           src={heroImage}
           alt="Luvas de aço carbono e conexões industriais Hidroconex — fabricação própria"
-          fetchPriority="high"
+          // Minúsculo: o React 18 não conhece fetchPriority e avisa no console.
+          {...{ fetchpriority: "high" }}
           decoding="async"
           className="h-full w-full object-cover object-center"
         />

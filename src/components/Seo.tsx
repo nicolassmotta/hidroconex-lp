@@ -1,16 +1,12 @@
-import { useEffect } from "react";
-import { absoluteUrl } from "@/lib/siteUrls";
-import { defaultSeo } from "@/lib/seo";
-
-interface SeoProps {
-  title?: string;
-  description?: string;
-  path?: string;
-  image?: string;
-  type?: "website" | "product";
-  robots?: string;
-  structuredData?: Array<Record<string, unknown>> | Record<string, unknown>;
-}
+import { useContext, useEffect } from "react";
+import {
+  JSON_LD_SCRIPT_ID,
+  resolveSeo,
+  seoMetaTags,
+  type ResolvedSeo,
+  type SeoInput,
+} from "@/lib/seo";
+import { SeoCollectorContext } from "@/lib/seoCollector";
 
 function setMeta(attribute: "name" | "property", key: string, content: string) {
   let element = document.head.querySelector<HTMLMetaElement>(`meta[${attribute}="${key}"]`);
@@ -24,8 +20,14 @@ function setMeta(attribute: "name" | "property", key: string, content: string) {
   element.setAttribute("content", content);
 }
 
-function setCanonical(url: string) {
+function setCanonical(url: string | null) {
   let element = document.head.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+
+  if (!url) {
+    element?.remove();
+    document.head.querySelector('meta[property="og:url"]')?.remove();
+    return;
+  }
 
   if (!element) {
     element = document.createElement("link");
@@ -36,49 +38,43 @@ function setCanonical(url: string) {
   element.setAttribute("href", url);
 }
 
-export default function Seo({
-  title = defaultSeo.title,
-  description = defaultSeo.description,
-  path = "/",
-  image = defaultSeo.image,
-  type = "website",
-  robots = "index,follow",
-  structuredData,
-}: SeoProps) {
+function setJsonLd(jsonLd: string | null) {
+  document.getElementById(JSON_LD_SCRIPT_ID)?.remove();
+  if (!jsonLd) return;
+
+  const script = document.createElement("script");
+  script.id = JSON_LD_SCRIPT_ID;
+  script.type = "application/ld+json";
+  script.textContent = jsonLd;
+  document.head.appendChild(script);
+}
+
+function applySeo(seo: ResolvedSeo) {
+  document.title = seo.title;
+  setCanonical(seo.canonical);
+
+  for (const tag of seoMetaTags(seo)) {
+    setMeta(tag.attribute, tag.key, tag.content);
+  }
+
+  const currentJsonLd = document.getElementById(JSON_LD_SCRIPT_ID)?.textContent ?? null;
+  if (currentJsonLd !== seo.jsonLd) {
+    setJsonLd(seo.jsonLd);
+  }
+}
+
+export default function Seo(props: SeoInput) {
+  const seo = resolveSeo(props);
+  const collect = useContext(SeoCollectorContext);
+
+  // Na pré-renderização não há efeitos: as tags vão direto para o HTML gerado.
+  collect?.(seo);
+
+  const { title, description, canonical, robots, type, image, imageAlt, jsonLd } = seo;
+
   useEffect(() => {
-    const canonical = absoluteUrl(path);
-    const imageUrl = absoluteUrl(image);
-
-    document.title = title;
-    setCanonical(canonical);
-    setMeta("name", "description", description);
-    setMeta("name", "robots", robots);
-    setMeta("property", "og:title", title);
-    setMeta("property", "og:description", description);
-    setMeta("property", "og:type", type);
-    setMeta("property", "og:url", canonical);
-    setMeta("property", "og:image", imageUrl);
-    setMeta("property", "og:image:alt", title);
-    setMeta("name", "twitter:card", "summary_large_image");
-    setMeta("name", "twitter:title", title);
-    setMeta("name", "twitter:description", description);
-    setMeta("name", "twitter:image", imageUrl);
-
-    const existingScript = document.getElementById("page-json-ld");
-    existingScript?.remove();
-
-    if (structuredData) {
-      const script = document.createElement("script");
-      const data = Array.isArray(structuredData) ? structuredData : [structuredData];
-      script.id = "page-json-ld";
-      script.type = "application/ld+json";
-      script.setAttribute("nonce", "aGlkcm9jb25leC1qc29ubGQ=");
-      script.textContent = JSON.stringify(
-        data.length === 1 ? data[0] : { "@context": "https://schema.org", "@graph": data },
-      );
-      document.head.appendChild(script);
-    }
-  }, [description, image, path, robots, structuredData, title, type]);
+    applySeo({ title, description, canonical, robots, type, image, imageAlt, jsonLd });
+  }, [title, description, canonical, robots, type, image, imageAlt, jsonLd]);
 
   return null;
 }

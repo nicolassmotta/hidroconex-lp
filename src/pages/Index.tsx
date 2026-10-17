@@ -23,7 +23,7 @@ const Index = () => {
         path="/"
         structuredData={[organizationSchema(), localBusinessSchema(), websiteSchema()]}
       />
-      <Header />
+      <Header isHome />
       <main>
         <Hero />
         <Products />

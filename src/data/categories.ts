@@ -11,6 +11,8 @@ export interface CatalogCategory {
   id: CatalogCategoryId;
   group: "tanques" | "reservatorios";
   title: string;
+  /** Nome completo usado em H1, <title> e links internos (o title curto se repete entre linhas). */
+  seoTitle: string;
   shortTitle: string;
   mainCategory: string;
   subCategory: string;
@@ -23,6 +25,7 @@ export const catalogCategories: CatalogCategory[] = [
     id: "ts-juntas",
     group: "tanques",
     title: "Juntas de Fixação",
+    seoTitle: "Juntas de Fixação para Tanques Subterrâneos",
     shortTitle: "Juntas",
     mainCategory: "Tanques Subterrâneos",
     subCategory: "Juntas",
@@ -34,6 +37,7 @@ export const catalogCategories: CatalogCategory[] = [
     id: "ts-luvas",
     group: "tanques",
     title: "Luvas",
+    seoTitle: "Luvas de Aço Carbono para Tanques Subterrâneos",
     shortTitle: "Luvas",
     mainCategory: "Tanques Subterrâneos",
     subCategory: "Luvas",
@@ -45,6 +49,7 @@ export const catalogCategories: CatalogCategory[] = [
     id: "ts-niples",
     group: "tanques",
     title: "Niples de Redução",
+    seoTitle: "Niples de Redução para Tanques Subterrâneos",
     shortTitle: "Niples",
     mainCategory: "Tanques Subterrâneos",
     subCategory: "Niples",
@@ -56,6 +61,7 @@ export const catalogCategories: CatalogCategory[] = [
     id: "ts-plugs",
     group: "tanques",
     title: "Plugs de Vedação",
+    seoTitle: "Plugs de Vedação para Tanques Subterrâneos",
     shortTitle: "Plugs",
     mainCategory: "Tanques Subterrâneos",
     subCategory: "Plugs",
@@ -67,6 +73,7 @@ export const catalogCategories: CatalogCategory[] = [
     id: "ts-filtros",
     group: "tanques",
     title: "Filtros",
+    seoTitle: "Filtros para Tanques Subterrâneos",
     shortTitle: "Filtros",
     mainCategory: "Tanques Subterrâneos",
     subCategory: "Filtros",
@@ -78,6 +85,7 @@ export const catalogCategories: CatalogCategory[] = [
     id: "rm-luvas",
     group: "reservatorios",
     title: "Luvas de Aço",
+    seoTitle: "Luvas de Aço para Reservatórios Metálicos",
     shortTitle: "Luvas",
     mainCategory: "Reservatórios Metálicos",
     subCategory: "Luvas",
@@ -89,6 +97,7 @@ export const catalogCategories: CatalogCategory[] = [
     id: "rm-niples",
     group: "reservatorios",
     title: "Niples",
+    seoTitle: "Niples para Reservatórios Metálicos",
     shortTitle: "Niples",
     mainCategory: "Reservatórios Metálicos",
     subCategory: "Niples",

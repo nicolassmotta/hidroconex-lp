@@ -1,5 +1,9 @@
 import { catalogData as staticCatalogData } from "@/data/catalog";
 import { getCategoryMeta } from "@/data/categories";
+import { whatsappUrl } from "@/data/company";
+
+/** Id do <script type="application/json"> com o catálogo usado na pré-renderização. */
+export const CATALOG_SNAPSHOT_ID = "catalog-snapshot";
 
 export interface CatalogItem {
   id: string;
@@ -129,11 +133,17 @@ export function resolveCatalogImage(product: Pick<CatalogItem, "imageUrl" | "imp
   return resolveStaticImage(product.importPath) || "/placeholder.svg";
 }
 
-function staticCatalog(): CatalogItem[] {
-  return staticCatalogData.map((product) => ({
-    ...product,
-    imageUrl: "",
-  })).map(normalizeCatalogItem);
+export function normalizeCatalog(products: CatalogItem[]): CatalogItem[] {
+  return products.map(normalizeCatalogItem);
+}
+
+export function staticCatalog(): CatalogItem[] {
+  return normalizeCatalog(
+    staticCatalogData.map((product) => ({
+      ...product,
+      imageUrl: "",
+    })),
+  );
 }
 
 function catalogErrorFromResponse(status: number, data: unknown): Error {
@@ -164,7 +174,7 @@ export async function fetchCatalog(options: FetchCatalogOptions = {}): Promise<C
 
     const data = await response.json().catch(() => null);
     if (data && Array.isArray(data.products)) {
-      return data.products.map(normalizeCatalogItem);
+      return normalizeCatalog(data.products);
     }
 
     throw new Error("Resposta invalida da API de catalogo.");
@@ -223,5 +233,11 @@ export function productSearchText(product: CatalogItem) {
     ]
       .filter(Boolean)
       .join(" "),
+  );
+}
+
+export function productQuoteUrl(product: Pick<CatalogItem, "model">) {
+  return whatsappUrl(
+    `Olá! Vim pelo site da Hidroconex e gostaria de solicitar orçamento do produto: ${product.model}.`,
   );
 }

@@ -1,4 +1,7 @@
 // @vitest-environment node
+import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { __test__ } from "./server.js";
 
@@ -69,5 +72,47 @@ describe("server helpers", () => {
     ).toMatchObject({ ok: true });
 
     expect(__test__.validateFailurePayload({ message: "" })).toMatchObject({ ok: false });
+  });
+
+  it("serves prerendered pages, the app shell and a real 404 like vercel.json", async () => {
+    const distDir = await fs.mkdtemp(path.join(os.tmpdir(), "hidroconex-dist-"));
+    await fs.mkdir(path.join(distDir, "produto", "luva-3"), { recursive: true });
+    await fs.mkdir(path.join(distDir, "catalogo"), { recursive: true });
+    await fs.writeFile(path.join(distDir, "index.html"), "home");
+    await fs.writeFile(path.join(distDir, "catalogo", "index.html"), "catalogo");
+    await fs.writeFile(path.join(distDir, "produto", "luva-3", "index.html"), "luva");
+    await fs.writeFile(path.join(distDir, "sitemap.xml"), "<urlset />");
+
+    const resolve = (pathname) => __test__.resolveStaticFile(pathname, distDir);
+
+    try {
+      expect(await resolve("/")).toEqual({ filePath: path.join(distDir, "index.html"), statusCode: 200 });
+      expect(await resolve("/catalogo/")).toEqual({
+        filePath: path.join(distDir, "catalogo", "index.html"),
+        statusCode: 200,
+      });
+      expect(await resolve("/produto/luva-3")).toEqual({
+        filePath: path.join(distDir, "produto", "luva-3", "index.html"),
+        statusCode: 200,
+      });
+      expect(await resolve("/sitemap.xml")).toEqual({
+        filePath: path.join(distDir, "sitemap.xml"),
+        statusCode: 200,
+      });
+      expect(await resolve("/produto/novo-produto")).toEqual({
+        filePath: path.join(distDir, "app-shell.html"),
+        statusCode: 200,
+      });
+      expect(await resolve("/admin")).toEqual({
+        filePath: path.join(distDir, "app-shell.html"),
+        statusCode: 200,
+      });
+      expect(await resolve("/pagina-que-nao-existe")).toEqual({
+        filePath: path.join(distDir, "404.html"),
+        statusCode: 404,
+      });
+    } finally {
+      await fs.rm(distDir, { recursive: true, force: true });
+    }
   });
 });

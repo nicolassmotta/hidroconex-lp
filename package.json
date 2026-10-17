@@ -11,7 +11,7 @@
     "dev:web": "vite",
     "dev:api": "node server/server.js",
     "start": "node server/server.js",
-    "build": "vite build",
+    "build": "vite build && vite build --ssr src/entry-server.tsx --outDir dist-ssr && node scripts/prerender.js",
     "build:dev": "vite build --mode development",
     "optimize:images": "node scripts/optimizeImages.js",
     "lint": "eslint .",

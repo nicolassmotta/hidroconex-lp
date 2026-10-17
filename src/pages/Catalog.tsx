@@ -1,107 +1,75 @@
-import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, MessageCircle, Search } from "lucide-react";
+import { MouseEvent, useEffect, useMemo, useState } from "react";
+import { MessageCircle, Search } from "lucide-react";
+import Breadcrumbs from "@/components/Breadcrumbs";
 import Footer from "@/components/Footer";
 import Header from "@/components/Header";
 import ProductImageFrame from "@/components/ProductImageFrame";
 import Seo from "@/components/Seo";
 import WhatsAppButton from "@/components/WhatsAppButton";
 import { catalogCategories, getCategoryMeta } from "@/data/categories";
+import { useCatalog } from "@/hooks/useCatalog";
 import {
-  CatalogItem,
-  fetchCatalog,
   normalizeSearchText,
+  productQuoteUrl,
   productSearchText,
   resolveCatalogImage,
 } from "@/lib/catalog";
+import { resolveRoute } from "@/lib/routes";
 import {
   breadcrumbSchema,
+  catalogSeo,
   categoryCollectionSchema,
+  categorySeoDescription,
+  categorySeoTitle,
   organizationSchema,
+  productImageAlt,
 } from "@/lib/seo";
 import { categoryPath, productPath } from "@/lib/siteUrls";
 
 const CATALOG_RESULTS_ID = "catalog-results";
+const ALL_CATEGORIES = "todos";
 
 interface CatalogPageProps {
   initialCategoryId?: string;
 }
 
-function isKnownCategoryId(categoryId?: string | null) {
-  return Boolean(
-    categoryId && catalogCategories.some((category) => category.id === categoryId),
-  );
+function categoryIdFromLocation() {
+  const route = resolveRoute(window.location.pathname);
+  return route.name === "catalog" && route.categoryId ? route.categoryId : ALL_CATEGORIES;
 }
 
-function getCategoryFromLocation(initialCategoryId?: string) {
-  const routeMatch = window.location.pathname.replace(/\/+$/, "").match(/^\/catalogo\/([^/]+)$/);
-  const routeCategory = routeMatch
-    ? catalogCategories.find(
-        (category) => category.slug === decodeURIComponent(routeMatch[1]),
-      )
-    : null;
-
-  if (routeCategory) return routeCategory.id;
-  if (isKnownCategoryId(initialCategoryId)) return initialCategoryId;
-
-  const params = new URLSearchParams(window.location.search);
-  const categoryId = params.get("categoria");
-
-  return isKnownCategoryId(categoryId) ? categoryId : "todos";
-}
-
-function quoteUrl(product: CatalogItem) {
-  const message = `Olá! Vim pelo site da Hidroconex e gostaria de solicitar orçamento do produto: ${product.model}.`;
-  return `https://wa.me/5517997726171?text=${encodeURIComponent(message)}`;
+function isModifiedClick(event: MouseEvent<HTMLAnchorElement>) {
+  return event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey;
 }
 
 const CatalogPage = ({ initialCategoryId }: CatalogPageProps) => {
-  const [products, setProducts] = useState<CatalogItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState(() =>
-    getCategoryFromLocation(initialCategoryId),
+  const { products, isLoading, error: loadError } = useCatalog();
+  const [selectedCategory, setSelectedCategory] = useState<string>(
+    initialCategoryId ?? ALL_CATEGORIES,
   );
   const [searchTerm, setSearchTerm] = useState("");
 
+  // Links antigos no formato /catalogo?categoria=<id> passam para a URL própria da categoria.
   useEffect(() => {
-    setSelectedCategory(getCategoryFromLocation(initialCategoryId));
+    if (initialCategoryId) return;
+
+    const legacyCategory = getCategoryMeta(
+      new URLSearchParams(window.location.search).get("categoria") ?? "",
+    );
+    if (!legacyCategory) return;
+
+    setSelectedCategory(legacyCategory.id);
+    window.history.replaceState({}, "", categoryPath(legacyCategory));
   }, [initialCategoryId]);
 
   useEffect(() => {
     const handlePopState = () => {
-      setSelectedCategory(getCategoryFromLocation(initialCategoryId));
+      setSelectedCategory(categoryIdFromLocation());
       setSearchTerm("");
     };
 
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
-  }, [initialCategoryId]);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    fetchCatalog()
-      .then((items) => {
-        if (isMounted) {
-          setProducts(items);
-          setLoadError(null);
-        }
-      })
-      .catch((error) => {
-        if (isMounted) {
-          setProducts([]);
-          setLoadError(error instanceof Error ? error.message : "Não foi possível carregar o catálogo.");
-        }
-      })
-      .finally(() => {
-        if (isMounted) {
-          setIsLoading(false);
-        }
-      });
-
-    return () => {
-      isMounted = false;
-    };
   }, []);
 
   const filteredProducts = useMemo(() => {
@@ -109,7 +77,7 @@ const CatalogPage = ({ initialCategoryId }: CatalogPageProps) => {
 
     return products.filter((product) => {
       const matchesCategory =
-        selectedCategory === "todos" || product.categoryId === selectedCategory;
+        selectedCategory === ALL_CATEGORIES || product.categoryId === selectedCategory;
       const matchesSearch =
         !normalizedSearch || productSearchText(product).includes(normalizedSearch);
 
@@ -125,25 +93,38 @@ const CatalogPage = ({ initialCategoryId }: CatalogPageProps) => {
   }, [products]);
 
   const selectedCategoryMeta =
-    selectedCategory === "todos" ? null : getCategoryMeta(selectedCategory) ?? null;
-  const seoTitle = selectedCategoryMeta
-    ? `${selectedCategoryMeta.title} | Catálogo Hidroconex`
-    : "Catálogo Hidroconex | Luvas, Niples e Componentes Industriais";
+    selectedCategory === ALL_CATEGORIES ? null : getCategoryMeta(selectedCategory) ?? null;
+  const seoTitle = selectedCategoryMeta ? categorySeoTitle(selectedCategoryMeta) : catalogSeo.title;
   const seoDescription = selectedCategoryMeta
-    ? `${selectedCategoryMeta.description} Consulte modelos e solicite orçamento técnico com a Hidroconex.`
-    : "Catálogo de conexões industriais Hidroconex: luvas, niples, juntas, plugs e filtros para tanques subterrâneos e reservatórios metálicos.";
+    ? categorySeoDescription(selectedCategoryMeta)
+    : catalogSeo.description;
   const seoPath = selectedCategoryMeta ? categoryPath(selectedCategoryMeta) : "/catalogo";
+  const breadcrumbs = [
+    { name: "Início", path: "/" },
+    { name: "Catálogo", path: "/catalogo" },
+    ...(selectedCategoryMeta
+      ? [{ name: selectedCategoryMeta.seoTitle, path: categoryPath(selectedCategoryMeta) }]
+      : []),
+  ];
 
-  const handleCategoryChange = (categoryId: string) => {
+  // Os filtros são links de verdade (rastreáveis); com JS a troca acontece sem recarregar.
+  const handleCategoryClick = (event: MouseEvent<HTMLAnchorElement>, categoryId: string) => {
+    if (isModifiedClick(event)) return;
+
+    event.preventDefault();
     setSelectedCategory(categoryId);
     setSearchTerm("");
 
-    const category = catalogCategories.find((item) => item.id === categoryId);
-    const nextPath =
-      categoryId === "todos" || !category ? "/catalogo" : categoryPath(category);
-
-    window.history.pushState({}, "", nextPath);
+    const category = getCategoryMeta(categoryId);
+    window.history.pushState({}, "", category ? categoryPath(category) : "/catalogo");
   };
+
+  const categoryLinkClass = (isActive: boolean) =>
+    `whitespace-nowrap rounded-lg border px-4 py-3 text-sm font-semibold transition-colors ${
+      isActive
+        ? "bg-primary text-primary-foreground border-primary"
+        : "bg-card text-foreground border-border hover:border-primary/50"
+    }`;
 
   return (
     <div className="min-h-screen bg-background">
@@ -154,13 +135,7 @@ const CatalogPage = ({ initialCategoryId }: CatalogPageProps) => {
         structuredData={[
           organizationSchema(),
           categoryCollectionSchema(selectedCategoryMeta, filteredProducts),
-          breadcrumbSchema([
-            { name: "Início", path: "/" },
-            { name: "Catálogo", path: "/catalogo" },
-            ...(selectedCategoryMeta
-              ? [{ name: selectedCategoryMeta.title, path: categoryPath(selectedCategoryMeta) }]
-              : []),
-          ]),
+          breadcrumbSchema(breadcrumbs),
         ]}
       />
       <Header />
@@ -168,13 +143,7 @@ const CatalogPage = ({ initialCategoryId }: CatalogPageProps) => {
       <main>
         <section className="bg-gradient-navy text-secondary-foreground pt-32 pb-16">
           <div className="section-container">
-            <a
-              href="/#produtos"
-              className="inline-flex items-center gap-2 text-secondary-foreground/75 hover:text-primary transition-colors mb-8"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Voltar para produtos
-            </a>
+            <Breadcrumbs items={breadcrumbs} />
 
             <div className="grid lg:grid-cols-[1.1fr_0.9fr] gap-10 items-end">
               <div>
@@ -183,8 +152,8 @@ const CatalogPage = ({ initialCategoryId }: CatalogPageProps) => {
                 </span>
                 <h1 className="text-4xl md:text-6xl font-bold leading-tight mb-6">
                   {selectedCategoryMeta
-                    ? selectedCategoryMeta.title
-                    : "Peças industriais com precisão de fabricação."}
+                    ? selectedCategoryMeta.seoTitle
+                    : "Catálogo de luvas, niples e conexões industriais"}
                 </h1>
                 <p className="text-lg text-secondary-foreground/75 max-w-2xl leading-relaxed">
                   {selectedCategoryMeta
@@ -226,41 +195,33 @@ const CatalogPage = ({ initialCategoryId }: CatalogPageProps) => {
                 />
               </div>
 
-              <div
+              <nav
                 className="flex gap-2 overflow-x-auto pb-1"
-                role="group"
                 aria-label="Filtrar catálogo por categoria"
               >
-                <button
-                  type="button"
-                  onClick={() => handleCategoryChange("todos")}
-                  aria-pressed={selectedCategory === "todos"}
+                <a
+                  href="/catalogo"
+                  onClick={(event) => handleCategoryClick(event, ALL_CATEGORIES)}
+                  aria-current={selectedCategory === ALL_CATEGORIES ? "page" : undefined}
                   aria-controls={CATALOG_RESULTS_ID}
-                  className={`whitespace-nowrap rounded-lg border px-4 py-3 text-sm font-semibold transition-colors ${
-                    selectedCategory === "todos"
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "bg-card text-foreground border-border hover:border-primary/50"
-                  }`}
+                  className={categoryLinkClass(selectedCategory === ALL_CATEGORIES)}
                 >
                   Todos ({products.length})
-                </button>
+                </a>
                 {catalogCategories.map((category) => (
-                  <button
+                  <a
                     key={category.id}
-                    type="button"
-                    onClick={() => handleCategoryChange(category.id)}
-                    aria-pressed={selectedCategory === category.id}
+                    href={categoryPath(category)}
+                    title={category.seoTitle}
+                    onClick={(event) => handleCategoryClick(event, category.id)}
+                    aria-current={selectedCategory === category.id ? "page" : undefined}
                     aria-controls={CATALOG_RESULTS_ID}
-                    className={`whitespace-nowrap rounded-lg border px-4 py-3 text-sm font-semibold transition-colors ${
-                      selectedCategory === category.id
-                        ? "bg-primary text-primary-foreground border-primary"
-                        : "bg-card text-foreground border-border hover:border-primary/50"
-                    }`}
+                    className={categoryLinkClass(selectedCategory === category.id)}
                   >
                     {category.shortTitle} ({categoryCounts[category.id] || 0})
-                  </button>
+                  </a>
                 ))}
-              </div>
+              </nav>
             </div>
 
             <div id={CATALOG_RESULTS_ID} aria-live="polite">
@@ -290,7 +251,7 @@ const CatalogPage = ({ initialCategoryId }: CatalogPageProps) => {
                         <a href={productPath(product)} aria-label={`Ver detalhes de ${product.model}`}>
                           <ProductImageFrame
                             src={image}
-                            alt={product.model}
+                            alt={productImageAlt(product)}
                             loading="lazy"
                             className="h-56 p-5 transition-colors hover:bg-primary/5"
                           />
@@ -311,7 +272,7 @@ const CatalogPage = ({ initialCategoryId }: CatalogPageProps) => {
                           </p>
 
                           <a
-                            href={quoteUrl(product)}
+                            href={productQuoteUrl(product)}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="mt-5 inline-flex items-center justify-center gap-2 rounded-md bg-secondary px-4 py-3 text-sm font-semibold text-secondary-foreground hover:bg-secondary/90 transition-colors"

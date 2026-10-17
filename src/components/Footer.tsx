@@ -1,4 +1,6 @@
 import BrandLogo from "@/components/BrandLogo";
+import { catalogCategories } from "@/data/categories";
+import { categoryPath } from "@/lib/siteUrls";
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
@@ -7,7 +9,7 @@ const Footer = () => {
     <footer className="bg-secondary text-secondary-foreground">
       <div className="section-container py-16">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12">
-          <div className="lg:col-span-2">
+          <div>
             <BrandLogo variant="light" className="mb-5" />
             <p className="text-secondary-foreground/70 max-w-md mb-6">
               Fabricante de luvas de aço carbono, conexões, niples, juntas, plugs
@@ -30,7 +32,22 @@ const Footer = () => {
           </div>
 
           <div>
-            <h4 className="font-bold text-lg mb-4">Links Rápidos</h4>
+            <h2 className="font-bold text-lg mb-4">Produtos</h2>
+            <nav aria-label="Linhas de produto" className="flex flex-col gap-3">
+              {catalogCategories.map((category) => (
+                <a
+                  key={category.id}
+                  href={categoryPath(category)}
+                  className="text-sm text-secondary-foreground/70 hover:text-primary transition-colors"
+                >
+                  {category.seoTitle}
+                </a>
+              ))}
+            </nav>
+          </div>
+
+          <div>
+            <h2 className="font-bold text-lg mb-4">Links Rápidos</h2>
             <nav className="flex flex-col gap-3">
               <a href="/#inicio" className="text-secondary-foreground/70 hover:text-primary transition-colors">
                 Início
@@ -54,7 +71,7 @@ const Footer = () => {
           </div>
 
           <div>
-            <h4 className="font-bold text-lg mb-4">Contato</h4>
+            <h2 className="font-bold text-lg mb-4">Contato</h2>
             <div className="space-y-4">
               <div>
                 <p className="mb-1 text-xs font-bold uppercase tracking-[0.18em] text-primary">Endereço</p>
@@ -82,7 +99,11 @@ const Footer = () => {
 
         <div className="mt-12 pt-8 border-t border-secondary-foreground/10">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <p className="text-secondary-foreground/50 text-sm text-center md:text-left">
+            {/* O ano vem do build no HTML estático; no navegador ele é recalculado. */}
+            <p
+              className="text-secondary-foreground/50 text-sm text-center md:text-left"
+              suppressHydrationWarning
+            >
               © {currentYear} Hidroconex Indústria e Comércio Ltda. Todos os direitos reservados.
             </p>
             <p className="text-secondary-foreground/50 text-sm">

@@ -8,7 +8,7 @@ mexer no código.
 
 ![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)
-![Vite](https://img.shields.io/badge/Vite-5-646CFF?logo=vite&logoColor=white)
+![Vite](https://img.shields.io/badge/Vite-8-646CFF?logo=vite&logoColor=white)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3-06B6D4?logo=tailwindcss&logoColor=white)
 ![Node.js](https://img.shields.io/badge/Node.js-backend-339933?logo=node.js&logoColor=white)
 ![MongoDB](https://img.shields.io/badge/MongoDB-GridFS-47A248?logo=mongodb&logoColor=white)
@@ -21,6 +21,8 @@ mexer no código.
 - **Painel administrativo** (`/admin`) — login protegido por senha para gerenciar
   produtos e fotos, com upload de imagens armazenadas no próprio banco.
 - **Formulário de contato** — envio pelo backend via Web3Forms com hCaptcha e rate limiting.
+- **SEO com HTML estático**: o build pré-renderiza home, catálogo, categorias e produtos
+  com título, descrição, canonical, Open Graph e JSON-LD próprios, e gera o `sitemap.xml`.
 - **Segurança** — autenticação por token assinado (HMAC), comparação de senha em
   tempo constante e rate limiting nas tentativas de login.
 
@@ -121,7 +123,10 @@ buckets `productImages.*` (GridFS) — não é preciso configurá-las manualment
 | -------------------------- | ------------------------------------------ |
 | `/`                        | Landing page institucional                 |
 | `/catalogo`                | Catálogo público completo                  |
+| `/catalogo/:categoria`     | Página de cada linha de produto            |
+| `/produto/:slug`           | Página de cada produto                     |
 | `/admin`                   | Painel para gerenciar produtos e fotos     |
+| `/sitemap.xml`             | Sitemap gerado no build a partir do catálogo |
 | `/api/catalog`             | API pública do catálogo                    |
 | `/api/catalog/images/:id`  | Imagens servidas do MongoDB/GridFS         |
 | `/api/contact`             | Envio do formulário de contato             |
@@ -136,7 +141,7 @@ buckets `productImages.*` (GridFS) — não é preciso configurá-las manualment
 npm run dev       # API + Vite juntos
 npm run dev:web   # somente frontend
 npm run dev:api   # somente backend Node
-npm run build     # build de produção
+npm run build     # build de produção + pré-renderização das páginas públicas
 npm run start     # serve API + frontend buildado
 npm run lint      # lint
 npm run test      # testes (Vitest)
@@ -146,7 +151,7 @@ npm run optimize:images # gera WebP otimizado a partir dos PNG originais
 
 ## Deploy (Vercel)
 
-O frontend é publicado como build Vite e a API roda em `api/[...path].js`,
+O frontend é publicado como build Vite e a API roda em `api/index.js`,
 reaproveitando o backend Node do projeto. Configure as variáveis pelo painel da
 Vercel:
 
@@ -159,3 +164,23 @@ Vercel:
 Configure o runtime da Vercel para Node.js 20.x ou superior.
 
 As fotos novas não dependem de disco local — ficam no GridFS do MongoDB.
+
+### Pré-renderização e SEO
+
+O `npm run build` roda três etapas: o build do cliente, um build SSR de
+`src/entry-server.tsx` e o `scripts/prerender.js`, que grava em `dist/`:
+
+- um `index.html` por rota pública (home, catálogo, categorias e produtos), com o
+  conteúdo já renderizado e as meta tags da página;
+- `404.html`, servido pela Vercel com status 404 em qualquer rota inexistente;
+- `app-shell.html`, usado só em `/admin` e em produtos cadastrados depois do último
+  deploy (o navegador renderiza a página e busca o catálogo na API);
+- `sitemap.xml`, com `lastmod` e imagens de cada produto.
+
+O catálogo usado no build vem da API publicada (`https://hidroconexluvas.com.br/api/catalog`).
+Se ela não responder, o build usa o catálogo estático do repositório. Para apontar para
+outra API, defina `PRERENDER_CATALOG_URL`; com `PRERENDER_CATALOG_URL=""` o build nem
+tenta a rede.
+
+Produtos criados ou editados no `/admin` aparecem na hora para quem navega, mas o HTML
+estático e o sitemap só são atualizados no próximo deploy.

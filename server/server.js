@@ -12,6 +12,10 @@ const ROOT_DIR = path.resolve(__dirname, "..");
 const DIST_DIR = path.join(ROOT_DIR, "dist");
 const PUBLIC_DIR = path.join(ROOT_DIR, "public");
 const LEGACY_JSON_FILE = path.join(__dirname, "data", "catalog.json");
+// Mesmo roteamento do vercel.json: HTML gerado no build, app-shell para /admin e
+// produtos criados depois do build, 404.html (status 404) para o resto.
+const APP_SHELL_FILE = "app-shell.html";
+const NOT_FOUND_FILE = "404.html";
 
 loadEnv(path.join(ROOT_DIR, ".env"));
 
@@ -172,7 +176,7 @@ function contentSecurityPolicy() {
     "base-uri 'self'",
     "object-src 'none'",
     "frame-ancestors 'none'",
-    "script-src 'self' 'nonce-aGlkcm9jb25leC1qc29ubGQ=' 'sha256-9HIY6JP1CZXL0iAbHgdRj4vXqz4EG54Pr+S4KjgVm4I=' https://hcaptcha.com https://*.hcaptcha.com",
+    "script-src 'self' https://hcaptcha.com https://*.hcaptcha.com",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com data:",
     "img-src 'self' data: blob: https:",
@@ -1423,6 +1427,7 @@ function contentTypeFor(filePath) {
     ".svg": "image/svg+xml",
     ".txt": "text/plain; charset=utf-8",
     ".webp": "image/webp",
+    ".xml": "application/xml; charset=utf-8",
   };
 
   return types[extension] || "application/octet-stream";
@@ -1454,10 +1459,32 @@ async function fileExists(filePath) {
   }
 }
 
-async function streamFile(res, filePath) {
+async function streamFile(res, filePath, statusCode = 200) {
   setSecurityHeaders(res);
-  res.writeHead(200, { "Content-Type": contentTypeFor(filePath) });
+  res.writeHead(statusCode, { "Content-Type": contentTypeFor(filePath) });
   fsSync.createReadStream(filePath).pipe(res);
+}
+
+function usesAppShell(pathname) {
+  return pathname === "/admin" || /^\/produto\/[^/]+$/.test(pathname);
+}
+
+async function resolveStaticFile(pathname, distDir = DIST_DIR) {
+  const cleanPath = pathname.replace(/\/+$/, "") || "/";
+  const candidates = cleanPath === "/" ? ["/index.html"] : [cleanPath, `${cleanPath}/index.html`];
+
+  for (const candidate of candidates) {
+    const filePath = safeJoin(distDir, candidate);
+    if (filePath && (await fileExists(filePath))) {
+      return { filePath, statusCode: 200 };
+    }
+  }
+
+  if (usesAppShell(cleanPath)) {
+    return { filePath: path.join(distDir, APP_SHELL_FILE), statusCode: 200 };
+  }
+
+  return { filePath: path.join(distDir, NOT_FOUND_FILE), statusCode: 404 };
 }
 
 async function serveStatic(req, res, pathname) {
@@ -1474,15 +1501,13 @@ async function serveStatic(req, res, pathname) {
     return;
   }
 
-  const requestedPath = pathname === "/" ? "/index.html" : pathname;
-  const staticPath = safeJoin(DIST_DIR, requestedPath);
-
-  if (staticPath && (await fileExists(staticPath))) {
-    await streamFile(res, staticPath);
+  const { filePath, statusCode } = await resolveStaticFile(pathname);
+  if (!(await fileExists(filePath))) {
+    sendError(res, 404, "Página não encontrada.");
     return;
   }
 
-  await streamFile(res, path.join(DIST_DIR, "index.html"));
+  await streamFile(res, filePath, statusCode);
 }
 
 const server = http.createServer(async (req, res) => {
@@ -1552,6 +1577,7 @@ export const __test__ = {
   cleanText,
   decodeBase64Image,
   detectImageType,
+  resolveStaticFile,
   routeUsesDatabase,
   stripImageMetadata,
   validateContactPayload,
