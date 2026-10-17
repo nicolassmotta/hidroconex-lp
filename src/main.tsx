@@ -1,5 +1,7 @@
 import { createRoot, hydrateRoot } from "react-dom/client";
 import { inject } from "@vercel/analytics";
+import "@fontsource-variable/inter";
+import "@fontsource-variable/montserrat";
 import App from "./App.tsx";
 import { CATALOG_SNAPSHOT_ID, type CatalogItem } from "@/lib/catalog";
 import "./index.css";

@@ -19,6 +19,9 @@ const CATALOG_TIMEOUT_MS = 15_000;
 // Servido pela Vercel nas rotas sem HTML gerado (/admin e produtos criados depois do build).
 const APP_SHELL_FILE = "app-shell.html";
 
+// Fontes do título e do texto (subconjunto latino): pré-carregadas para o texto aparecer logo.
+const PRELOADED_FONTS = /^(inter|montserrat)-latin-wght-normal-[\w-]+\.woff2$/;
+
 async function fetchPublishedCatalog(url) {
   try {
     const response = await fetch(url, {
@@ -63,13 +66,30 @@ function outputFileFor(routePath) {
     : path.join(DIST_DIR, ...routePath.split("/").filter(Boolean), "index.html");
 }
 
+async function fontPreloadTags() {
+  const assets = await fs.readdir(path.join(DIST_DIR, "assets"));
+  const fonts = assets.filter((file) => PRELOADED_FONTS.test(file)).sort();
+  if (fonts.length !== 2) {
+    throw new Error(`Esperava 2 fontes para pré-carregar em dist/assets, achei ${fonts.length}.`);
+  }
+
+  return fonts
+    .map((file) => `<link rel="preload" href="/assets/${file}" as="font" type="font/woff2" crossorigin />`)
+    .join("\n  ");
+}
+
 async function writeFile(filePath, content) {
   await fs.mkdir(path.dirname(filePath), { recursive: true });
   await fs.writeFile(filePath, content, "utf8");
 }
 
 async function prerender() {
-  const template = await fs.readFile(path.join(DIST_DIR, "index.html"), "utf8");
+  const builtTemplate = await fs.readFile(path.join(DIST_DIR, "index.html"), "utf8");
+  const preloadTags = await fontPreloadTags();
+  const template = builtTemplate.replace(
+    "<!--app-head-->",
+    () => `${preloadTags}\n  <!--app-head-->`,
+  );
   const ssr = await import(pathToFileURL(SSR_ENTRY).href);
 
   const catalogUrl = process.env.PRERENDER_CATALOG_URL ?? DEFAULT_CATALOG_URL;
