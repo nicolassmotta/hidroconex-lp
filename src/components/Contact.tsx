@@ -60,6 +60,32 @@ const Contact = () => {
   } | null>(null);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const captchaRef = useRef<HCaptcha>(null);
+  const formRef = useRef<HTMLFormElement>(null);
+  // O hCaptcha (script e cookies de terceiros) só carrega quando o formulário chega perto da
+  // tela ou recebe foco, e não em toda visita à home.
+  const [shouldLoadCaptcha, setShouldLoadCaptcha] = useState(false);
+
+  useEffect(() => {
+    const form = formRef.current;
+    if (!form || shouldLoadCaptcha) return;
+
+    if (!("IntersectionObserver" in window)) {
+      setShouldLoadCaptcha(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setShouldLoadCaptcha(true);
+        }
+      },
+      { rootMargin: "300px" },
+    );
+    observer.observe(form);
+
+    return () => observer.disconnect();
+  }, [shouldLoadCaptcha]);
 
   useEffect(() => {
     const checkStatus = () => {
@@ -172,6 +198,8 @@ const Contact = () => {
             </h3>
 
             <form
+              ref={formRef}
+              onFocus={() => setShouldLoadCaptcha(true)}
               className="space-y-5"
               onSubmit={async (event) => {
                 event.preventDefault();
@@ -310,14 +338,17 @@ const Contact = () => {
               )}
 
               <div className="w-full overflow-x-auto pb-1">
-                <div className="min-w-[303px]">
-                  <HCaptcha
-                    ref={captchaRef}
-                    sitekey="50b2fe65-b00b-4b9e-ad62-3ba471098be2"
-                    reCaptchaCompat={false}
-                    onVerify={(token) => setCaptchaToken(token)}
-                    onExpire={() => setCaptchaToken(null)}
-                  />
+                {/* Altura do widget reservada para o formulário não pular quando ele carrega. */}
+                <div className="min-h-[78px] min-w-[303px]">
+                  {shouldLoadCaptcha && (
+                    <HCaptcha
+                      ref={captchaRef}
+                      sitekey="50b2fe65-b00b-4b9e-ad62-3ba471098be2"
+                      reCaptchaCompat={false}
+                      onVerify={(token) => setCaptchaToken(token)}
+                      onExpire={() => setCaptchaToken(null)}
+                    />
+                  )}
                 </div>
               </div>
 
