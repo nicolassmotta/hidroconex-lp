@@ -1,4 +1,5 @@
 import { createRoot, hydrateRoot } from "react-dom/client";
+import { inject } from "@vercel/analytics";
 import App from "./App.tsx";
 import { CATALOG_SNAPSHOT_ID, type CatalogItem } from "@/lib/catalog";
 import "./index.css";
@@ -24,4 +25,16 @@ if (container.firstElementChild) {
   hydrateRoot(container, app);
 } else {
   createRoot(container).render(app);
+}
+
+// Vercel Web Analytics: só visualizações de página, sem cookies. O painel /admin fica de fora.
+// Se a Vercel expuser a config de observabilidade no build, ela define o caminho do script;
+// sem ela vale o padrão /_vercel/insights.
+if (import.meta.env.PROD) {
+  inject(
+    {
+      beforeSend: (event) => (new URL(event.url).pathname.startsWith("/admin") ? null : event),
+    },
+    import.meta.env.VITE_VERCEL_OBSERVABILITY_CLIENT_CONFIG,
+  );
 }
