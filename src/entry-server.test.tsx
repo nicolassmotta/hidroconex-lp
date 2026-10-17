@@ -52,4 +52,18 @@ describe("server rendering", () => {
     expect(headHtml).toContain('<meta name="robots" content="noindex,follow" />');
     expect(headHtml).not.toContain('rel="canonical"');
   });
+
+  it("points old product URLs to the renamed product", () => {
+    const renamed = catalog.map((product) =>
+      product.id.startsWith("rm-luvas-luva-3-") && !product.id.includes("x-30mm")
+        ? { ...product, previousIds: ["rm-luvas-luva-tres"] }
+        : product,
+    );
+    const { appHtml, headHtml } = render("/produto/rm-luvas-luva-tres", renamed);
+
+    expect(appHtml).toContain("Este produto mudou de endereço");
+    expect(appHtml).toContain('href="/produto/rm-luvas-luva-3"');
+    expect(headHtml).toContain('rel="canonical" href="https://hidroconexluvas.com.br/produto/rm-luvas-luva-3"');
+    expect(headHtml).toContain('<meta name="robots" content="noindex,follow" />');
+  });
 });

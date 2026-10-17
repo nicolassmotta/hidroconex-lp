@@ -113,6 +113,11 @@ async function prerender() {
     );
   }
 
+  const redirects = ssr.prerenderRedirects(products);
+  for (const redirect of redirects) {
+    await writeFile(outputFileFor(redirect.from), ssr.renderRedirectPage(redirect.to));
+  }
+
   // A Vercel serve dist/404.html (com status 404) em qualquer rota sem arquivo.
   const notFound = ssr.render(ssr.NOT_FOUND_PATH, products);
   await writeFile(path.join(DIST_DIR, "404.html"), fillTemplate(template, notFound));
@@ -126,7 +131,7 @@ async function prerender() {
 
   const source = publishedProducts ? catalogUrl : "catálogo estático";
   console.log(
-    `[prerender] ${pages.length} páginas, 404, ${APP_SHELL_FILE} e sitemap.xml gerados (${products.length} produtos de ${source}).`,
+    `[prerender] ${pages.length} páginas, ${redirects.length} redirects, 404, ${APP_SHELL_FILE} e sitemap.xml gerados (${products.length} produtos de ${source}).`,
   );
 }
 

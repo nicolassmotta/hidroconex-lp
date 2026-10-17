@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { Factory, MessageCircle, Ruler, ShieldCheck } from "lucide-react";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import Footer from "@/components/Footer";
@@ -17,7 +17,7 @@ import {
   productSchema,
   productSeoTitle,
 } from "@/lib/seo";
-import { categoryPath, productPath, productSlug } from "@/lib/siteUrls";
+import { categoryPath, normalizeSlug, productPath, productSlug } from "@/lib/siteUrls";
 
 interface ProductDetailProps {
   slug: string;
@@ -30,6 +30,21 @@ const ProductDetail = ({ slug }: ProductDetailProps) => {
     () => products.find((item) => productSlug(item) === slug),
     [products, slug],
   );
+  // Produto renomeado no admin: a URL antiga leva à nova. As renomeações anteriores ao último
+  // deploy já saem como redirect no HTML gerado (scripts/prerender.js); aqui ficam as recentes.
+  const movedTo = useMemo(
+    () =>
+      product
+        ? undefined
+        : products.find((item) => item.previousIds?.some((id) => normalizeSlug(id) === slug)),
+    [product, products, slug],
+  );
+
+  useEffect(() => {
+    if (movedTo) {
+      window.location.replace(productPath(movedTo));
+    }
+  }, [movedTo]);
   const category = product ? getCategoryMeta(product.categoryId) : null;
   const image = product ? resolveCatalogImage(product) : "/placeholder.svg";
   const relatedProducts = product
@@ -54,7 +69,7 @@ const ProductDetail = ({ slug }: ProductDetailProps) => {
       <Seo
         title={title}
         description={description}
-        path={product ? productPath(product) : null}
+        path={product ? productPath(product) : movedTo ? productPath(movedTo) : null}
         image={product ? image : undefined}
         imageAlt={product ? productImageAlt(product) : undefined}
         type={product ? "product" : "website"}
@@ -75,6 +90,17 @@ const ProductDetail = ({ slug }: ProductDetailProps) => {
 
             {isLoading ? (
               <div className="py-12 text-secondary-foreground/75">Carregando produto...</div>
+            ) : movedTo ? (
+              <div className="max-w-2xl rounded-lg border border-white/10 bg-white/5 p-8">
+                <h1 className="mb-3 text-3xl font-bold">Este produto mudou de endereço</h1>
+                <p className="text-secondary-foreground/75">
+                  Redirecionando para{" "}
+                  <a href={productPath(movedTo)} className="font-semibold text-primary underline">
+                    {movedTo.model}
+                  </a>
+                  .
+                </p>
+              </div>
             ) : loadError || !product ? (
               <div className="max-w-2xl rounded-lg border border-white/10 bg-white/5 p-8">
                 <h1 className="mb-3 text-3xl font-bold">Produto não encontrado</h1>

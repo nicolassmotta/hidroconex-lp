@@ -690,12 +690,23 @@ function toObjectId(value) {
   return null;
 }
 
+// Ids antigos de um produto renomeado: as URLs velhas continuam levando à página nova.
+function nextPreviousIds(existingProduct, nextId) {
+  const ids = [...(existingProduct.previousIds || [])];
+  if (existingProduct.id !== nextId) {
+    ids.push(existingProduct.id);
+  }
+
+  return [...new Set(ids.map(String))].filter((id) => id && id !== nextId);
+}
+
 function normalizeProductForStorage(product) {
   const category = CATEGORY_MAP[product.categoryId];
   const now = new Date();
 
   return {
     id: String(product.id),
+    previousIds: Array.isArray(product.previousIds) ? product.previousIds.map(String) : [],
     categoryId: String(product.categoryId),
     mainCategory: category?.mainCategory || cleanText(product.mainCategory),
     subCategory: category?.subCategory || cleanText(product.subCategory),
@@ -714,6 +725,7 @@ function serializeProduct(product) {
 
   return {
     id: product.id,
+    previousIds: product.previousIds || [],
     categoryId: product.categoryId,
     mainCategory: product.mainCategory,
     subCategory: product.subCategory,
@@ -1356,14 +1368,16 @@ async function handleApi(req, res, pathname) {
         await deleteUploadedImage(existingProduct.imageId);
       }
 
+      const nextId = await makeProductId(
+        validation.product.categoryId,
+        validation.product.model,
+        existingProduct.id,
+      );
       const nextProduct = normalizeProductForStorage({
         ...existingProduct,
         ...validation.product,
-        id: await makeProductId(
-          validation.product.categoryId,
-          validation.product.model,
-          existingProduct.id,
-        ),
+        id: nextId,
+        previousIds: nextPreviousIds(existingProduct, nextId),
         imageId: nextImageId,
         imageUrl: payload.image?.data ? "" : existingProduct.imageUrl,
         importPath: payload.image?.data ? "" : existingProduct.importPath,
@@ -1586,6 +1600,7 @@ function redactMongoUri(uri) {
 export const __test__ = {
   catalogCacheControl,
   cleanText,
+  nextPreviousIds,
   decodeBase64Image,
   detectImageType,
   resolveStaticFile,

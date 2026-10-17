@@ -16,6 +16,8 @@ export interface CatalogItem {
   description?: string;
   createdAt?: string;
   updatedAt?: string;
+  /** Ids anteriores (produto renomeado no admin); as URLs antigas redirecionam para a atual. */
+  previousIds?: string[];
 }
 
 interface FetchCatalogOptions {

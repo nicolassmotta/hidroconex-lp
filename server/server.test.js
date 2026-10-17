@@ -21,6 +21,18 @@ describe("server helpers", () => {
     expect(__test__.catalogCacheControl(request("/api/catalog?fresh=1"))).toBe("no-store");
   });
 
+  it("keeps the previous ids of a renamed product", () => {
+    expect(__test__.nextPreviousIds({ id: "rm-luvas-luva-3", previousIds: [] }, "rm-luvas-luva-3-x-30mm")).toEqual([
+      "rm-luvas-luva-3",
+    ]);
+    expect(
+      __test__.nextPreviousIds({ id: "b", previousIds: ["a"] }, "c"),
+    ).toEqual(["a", "b"]);
+    // Voltar ao nome antigo não deixa o id atual na lista de redirects.
+    expect(__test__.nextPreviousIds({ id: "b", previousIds: ["a"] }, "a")).toEqual(["b"]);
+    expect(__test__.nextPreviousIds({ id: "a" }, "a")).toEqual([]);
+  });
+
   it("validates product payloads", () => {
     expect(
       __test__.validateProductPayload({

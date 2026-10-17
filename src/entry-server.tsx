@@ -5,7 +5,12 @@ import { renderSeoHead, resolveSeo, type ResolvedSeo } from "@/lib/seo";
 
 export { CATALOG_SNAPSHOT_ID, normalizeCatalog, staticCatalog } from "@/lib/catalog";
 export { serializeJsonForHtml } from "@/lib/seo";
-export { buildSitemapXml, prerenderPages } from "@/lib/prerender";
+export {
+  buildSitemapXml,
+  prerenderPages,
+  prerenderRedirects,
+  renderRedirectPage,
+} from "@/lib/prerender";
 
 /** Rota que nenhuma página usa: o App cai na página 404. */
 export const NOT_FOUND_PATH = "/404";

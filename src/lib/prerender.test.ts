@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { staticCatalog } from "./catalog";
-import { buildSitemapXml, prerenderPages } from "./prerender";
+import {
+  buildSitemapXml,
+  prerenderPages,
+  prerenderRedirects,
+  renderRedirectPage,
+} from "./prerender";
 
 describe("prerender pages and sitemap", () => {
   const products = staticCatalog().map((product, index) => ({
@@ -40,5 +45,22 @@ describe("prerender pages and sitemap", () => {
 
     expect(xml).toContain("/catalogo/luvas-de-aco-para-reservatorios-metalicos");
     expect(xml).not.toContain("/catalogo/filtros-para-tanques-subterraneos");
+  });
+
+  it("redirects old slugs of renamed products without hijacking current ones", () => {
+    const [first, second] = products;
+    const redirects = prerenderRedirects([
+      { ...first, previousIds: ["rm-luvas-luva-velha", `${first.id}-`, second.id] },
+      second,
+    ]);
+
+    expect(redirects).toEqual([{ from: "/produto/rm-luvas-luva-velha", to: `/produto/${first.id.replace(/-+$/, "")}` }]);
+  });
+
+  it("renders an instant redirect page with canonical", () => {
+    const html = renderRedirectPage("/produto/rm-luvas-luva-3");
+
+    expect(html).toContain('<meta http-equiv="refresh" content="0; url=/produto/rm-luvas-luva-3" />');
+    expect(html).toContain('<link rel="canonical" href="https://hidroconexluvas.com.br/produto/rm-luvas-luva-3" />');
   });
 });
