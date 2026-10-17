@@ -33,7 +33,9 @@ describe("server rendering", () => {
 
     expect(headHtml).toContain('href="https://hidroconexluvas.com.br/"');
     expect(headHtml).toContain('"@type":"LocalBusiness"');
+    expect(headHtml).toContain('"@type":"FAQPage"');
     expect(appHtml).toContain("Luvas de aço carbono, conexões e componentes");
+    expect(appHtml).toContain("A Hidroconex fabrica peças sob medida?");
   });
 
   it("renders the 404 page as noindex without canonical", () => {

@@ -1,5 +1,6 @@
 import { catalogCategories, getCategoryMeta, type CatalogCategory } from "@/data/categories";
 import { businessHours, formatTime, FOUNDED_AT } from "@/data/company";
+import type { FaqItem } from "@/data/faq";
 import type { CatalogItem } from "@/lib/catalog";
 import { absoluteUrl, categoryPath, productPath, SITE_URL } from "@/lib/siteUrls";
 
@@ -274,6 +275,21 @@ export function websiteSchema() {
     publisher: {
       "@id": ORGANIZATION_ID,
     },
+  };
+}
+
+export function faqSchema(items: FaqItem[]) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: items.map((item) => ({
+      "@type": "Question",
+      name: item.question,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: item.answer,
+      },
+    })),
   };
 }
 
