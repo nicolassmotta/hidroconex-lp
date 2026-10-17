@@ -54,6 +54,12 @@ const optimizedProductImages = import.meta.glob("/src/assets/ProductsOptimized/*
   import: "default",
 }) as Record<string, string>;
 
+// Miniaturas de 480 px geradas por scripts/optimizeImages.js para os cards.
+const productThumbnails = import.meta.glob("/src/assets/ProductsThumbs/**/*.webp", {
+  eager: true,
+  import: "default",
+}) as Record<string, string>;
+
 function cleanText(value?: string) {
   if (!value) return "";
   if (!/[ÃÂ]/.test(value)) return value;
@@ -86,11 +92,11 @@ export function normalizeSearchText(value?: string) {
     .toLowerCase();
 }
 
-function optimizedPathFor(importPath?: string) {
+function optimizedPathFor(importPath?: string, outputDir = "ProductsOptimized") {
   if (!importPath) return "";
   return importPath
     .replace(/^\./, "")
-    .replace("/src/assets/Products/", "/src/assets/ProductsOptimized/")
+    .replace("/src/assets/Products/", `/src/assets/${outputDir}/`)
     .replace(/\.png$/i, ".webp");
 }
 
@@ -131,6 +137,18 @@ function resolveStaticImage(importPath?: string): string {
 export function resolveCatalogImage(product: Pick<CatalogItem, "imageUrl" | "importPath">): string {
   if (product.imageUrl) return product.imageUrl;
   return resolveStaticImage(product.importPath) || "/placeholder.svg";
+}
+
+/** Imagem menor para cards; fotos enviadas pelo admin (GridFS) não têm miniatura. */
+export function resolveCatalogThumbnail(
+  product: Pick<CatalogItem, "imageUrl" | "importPath">,
+): string {
+  if (product.imageUrl) return product.imageUrl;
+
+  return (
+    findImageByPath(productThumbnails, optimizedPathFor(product.importPath, "ProductsThumbs")) ||
+    resolveCatalogImage(product)
+  );
 }
 
 export function normalizeCatalog(products: CatalogItem[]): CatalogItem[] {

@@ -4,12 +4,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ProductImageFrame from "@/components/ProductImageFrame";
 import { catalogCategoryGroups, CatalogCategory } from "@/data/categories";
 import { useCatalog } from "@/hooks/useCatalog";
-import { CatalogItem, resolveCatalogImage } from "@/lib/catalog";
+import { CatalogItem, resolveCatalogThumbnail } from "@/lib/catalog";
 import { categoryPath } from "@/lib/siteUrls";
 
 function getCategoryThumbnail(categoryId: string, products: CatalogItem[]): string {
   const item = products.find((product) => product.categoryId === categoryId);
-  return item ? resolveCatalogImage(item) : "/placeholder.svg";
+  return item ? resolveCatalogThumbnail(item) : "/placeholder.svg";
 }
 
 const ProductCard = ({

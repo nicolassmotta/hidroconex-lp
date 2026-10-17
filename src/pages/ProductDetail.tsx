@@ -8,7 +8,7 @@ import Seo from "@/components/Seo";
 import WhatsAppButton from "@/components/WhatsAppButton";
 import { getCategoryMeta } from "@/data/categories";
 import { useCatalog } from "@/hooks/useCatalog";
-import { productQuoteUrl, resolveCatalogImage } from "@/lib/catalog";
+import { productQuoteUrl, resolveCatalogImage, resolveCatalogThumbnail } from "@/lib/catalog";
 import {
   breadcrumbSchema,
   organizationSchema,
@@ -194,7 +194,7 @@ const ProductDetail = ({ slug }: ProductDetailProps) => {
                         className="card-industrial group overflow-hidden bg-card"
                       >
                         <ProductImageFrame
-                          src={resolveCatalogImage(related)}
+                          src={resolveCatalogThumbnail(related)}
                           alt={productImageAlt(related)}
                           className="h-48 p-5"
                         />

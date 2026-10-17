@@ -12,7 +12,7 @@ import {
   normalizeSearchText,
   productQuoteUrl,
   productSearchText,
-  resolveCatalogImage,
+  resolveCatalogThumbnail,
 } from "@/lib/catalog";
 import { resolveRoute } from "@/lib/routes";
 import {
@@ -241,7 +241,7 @@ const CatalogPage = ({ initialCategoryId }: CatalogPageProps) => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                   {filteredProducts.map((product) => {
                     const category = getCategoryMeta(product.categoryId);
-                    const image = resolveCatalogImage(product);
+                    const image = resolveCatalogThumbnail(product);
 
                     return (
                       <article
