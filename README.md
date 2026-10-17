@@ -23,6 +23,10 @@ mexer no código.
 - **Formulário de contato** — envio pelo backend via Web3Forms com hCaptcha e rate limiting.
 - **SEO com HTML estático**: o build pré-renderiza home, catálogo, categorias e produtos
   com título, descrição, canonical, Open Graph e JSON-LD próprios, e gera o `sitemap.xml`.
+- **Site sempre atualizado**: alterações no admin disparam um novo deploy (Deploy Hook) e
+  produtos renomeados mantêm a URL antiga redirecionando para a nova.
+- **Métricas**: Vercel Web Analytics (sem cookies, gratuito no plano Hobby), ativado na aba
+  Analytics do projeto na Vercel.
 - **Segurança** — autenticação por token assinado (HMAC), comparação de senha em
   tempo constante e rate limiting nas tentativas de login.
 
