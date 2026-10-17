@@ -1183,7 +1183,6 @@ async function handleApi(req, res, pathname) {
     sendJson(res, 200, {
       ok: true,
       service: "hidroconex-api",
-      dbName: MONGODB_DB_NAME,
     });
     return;
   }
@@ -1194,7 +1193,6 @@ async function handleApi(req, res, pathname) {
       ok: true,
       service: "hidroconex-api",
       database: "mongodb",
-      dbName: MONGODB_DB_NAME,
       productCount,
     });
     return;
