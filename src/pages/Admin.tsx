@@ -104,6 +104,21 @@ async function fileToUpload(file: File): Promise<UploadImage> {
   };
 }
 
+type SiteRebuild = "started" | "failed" | "disabled";
+
+// Com o Deploy Hook configurado na Vercel, cada alteração regera as páginas estáticas e o sitemap.
+function notifySiteRebuild(rebuild?: SiteRebuild) {
+  if (rebuild === "started") {
+    toast.info("Atualizando as páginas do site", {
+      description: "As páginas do catálogo e o sitemap ficam prontos em alguns minutos.",
+    });
+  } else if (rebuild === "failed") {
+    toast.warning("Alteração salva, mas a atualização do site não começou", {
+      description: "Salve de novo em alguns minutos ou faça um novo deploy na Vercel.",
+    });
+  }
+}
+
 async function requestJson(path: string, options: RequestInit = {}) {
   const response = await fetch(path, {
     credentials: "include",
@@ -401,7 +416,7 @@ const AdminPage = () => {
         ? `/api/admin/products/${encodeURIComponent(form.id)}`
         : "/api/admin/products";
 
-      await requestJson(path, {
+      const result = await requestJson(path, {
         method: isEditing ? "PUT" : "POST",
         body: JSON.stringify(payload),
       });
@@ -409,6 +424,7 @@ const AdminPage = () => {
       toast.success(
         isEditing ? "Produto atualizado com sucesso." : "Produto cadastrado com sucesso.",
       );
+      notifySiteRebuild(result.rebuild);
 
       if (options.addAnother) {
         setForm((current) => ({ ...emptyForm, categoryId: current.categoryId }));
@@ -433,11 +449,12 @@ const AdminPage = () => {
     setIsSaving(true);
 
     try {
-      await requestJson(`/api/admin/products/${encodeURIComponent(product.id)}`, {
+      const result = await requestJson(`/api/admin/products/${encodeURIComponent(product.id)}`, {
         method: "DELETE",
       });
 
       toast.success("Produto removido do catálogo.");
+      notifySiteRebuild(result.rebuild);
       setSelectedIds((current) => {
         const next = new Set(current);
         next.delete(product.id);
@@ -479,6 +496,7 @@ const AdminPage = () => {
       } else {
         toast.success(`${removed} produto(s) removido(s).`);
       }
+      notifySiteRebuild(result.rebuild);
     } catch (error) {
       if (isAuthError(error)) {
         await logout("Sessão expirada. Faça login novamente.");

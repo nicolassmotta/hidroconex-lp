@@ -2,7 +2,7 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { __test__ } from "./server.js";
 
 describe("server helpers", () => {
@@ -31,6 +31,31 @@ describe("server helpers", () => {
     // Voltar ao nome antigo não deixa o id atual na lista de redirects.
     expect(__test__.nextPreviousIds({ id: "b", previousIds: ["a"] }, "a")).toEqual(["b"]);
     expect(__test__.nextPreviousIds({ id: "a" }, "a")).toEqual([]);
+  });
+
+  describe("site rebuild after catalog changes", () => {
+    afterEach(() => {
+      delete process.env.VERCEL_DEPLOY_HOOK_URL;
+      vi.unstubAllGlobals();
+    });
+
+    it("does nothing without a deploy hook", async () => {
+      const fetchMock = vi.fn();
+      vi.stubGlobal("fetch", fetchMock);
+
+      expect(await __test__.triggerSiteRebuild({ headers: {} })).toBe("disabled");
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it("posts to the deploy hook and reports failures", async () => {
+      process.env.VERCEL_DEPLOY_HOOK_URL = "https://api.vercel.com/v1/integrations/deploy/prj_x/abc";
+      const fetchMock = vi.fn().mockResolvedValueOnce({ ok: true }).mockResolvedValueOnce({ ok: false, status: 429 });
+      vi.stubGlobal("fetch", fetchMock);
+
+      expect(await __test__.triggerSiteRebuild({ headers: {} })).toBe("started");
+      expect(fetchMock).toHaveBeenCalledWith(process.env.VERCEL_DEPLOY_HOOK_URL, expect.objectContaining({ method: "POST" }));
+      expect(await __test__.triggerSiteRebuild({ headers: {} })).toBe("failed");
+    });
   });
 
   it("validates product payloads", () => {

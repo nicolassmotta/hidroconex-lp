@@ -105,6 +105,7 @@ WEB3FORMS_ACCESS_KEY="sua_chave_web3forms"
 | `IMAGE_LIMIT_MB`          | Não         | `8` (`3` na Vercel)   | Tamanho máximo de imagem no upload          |
 | `WEB3FORMS_ACCESS_KEY`     | Sim       | —                     | Chave do Web3Forms usada pela API de contato |
 | `FAILURE_EVENT_TTL_DAYS`  | Não         | `14`                  | Retenção dos eventos de falha no admin      |
+| `VERCEL_DEPLOY_HOOK_URL`  | Não         | -                     | Deploy Hook chamado após mudanças no catálogo |
 
 Variáveis opcionais de ajuste fino do login e do contato também são suportadas:
 `ADMIN_TOKEN_TTL_HOURS`, `LOGIN_MAX_ATTEMPTS`, `LOGIN_WINDOW_MIN`,
@@ -182,5 +183,8 @@ Se ela não responder, o build usa o catálogo estático do repositório. Para a
 outra API, defina `PRERENDER_CATALOG_URL`; com `PRERENDER_CATALOG_URL=""` o build nem
 tenta a rede.
 
-Produtos criados ou editados no `/admin` aparecem na hora para quem navega, mas o HTML
-estático e o sitemap só são atualizados no próximo deploy.
+Produtos criados ou editados no `/admin` aparecem na hora para quem navega. O HTML
+estático e o sitemap são regerados no deploy seguinte: com `VERCEL_DEPLOY_HOOK_URL`
+configurada (Vercel > Settings > Git > Deploy Hooks, branch `main`), o próprio admin
+dispara esse deploy a cada alteração. Ao renomear um produto, a URL antiga continua
+levando à nova.

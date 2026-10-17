@@ -438,6 +438,35 @@ async function recordFailureEvent(req, event) {
   }
 }
 
+// Deploy Hook da Vercel (Settings > Git > Deploy Hooks): cada alteração no catálogo dispara
+// um build novo, que regera o HTML estático e o sitemap. A Vercel cancela o build anterior
+// do mesmo hook, então várias edições seguidas terminam num deploy só.
+async function triggerSiteRebuild(req) {
+  const hookUrl = process.env.VERCEL_DEPLOY_HOOK_URL;
+  if (!hookUrl) return "disabled";
+
+  try {
+    const response = await fetch(hookUrl, {
+      method: "POST",
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!response.ok) {
+      throw new Error(`Deploy Hook respondeu HTTP ${response.status}.`);
+    }
+
+    return "started";
+  } catch (error) {
+    await recordFailureEvent(req, {
+      source: "api",
+      severity: "warning",
+      type: "deploy-hook",
+      route: "/api/admin/products",
+      message: `Não foi possível atualizar o site: ${error.message}`,
+    });
+    return "failed";
+  }
+}
+
 async function failureSummary(limit = 20) {
   const safeLimit = Math.min(Math.max(Number(limit) || 20, 1), 50);
   const now = Date.now();
@@ -1304,7 +1333,10 @@ async function handleApi(req, res, pathname) {
       });
 
       await productsCollection.insertOne(product);
-      sendJson(res, 201, { product: serializeProduct(product) });
+      sendJson(res, 201, {
+        product: serializeProduct(product),
+        rebuild: await triggerSiteRebuild(req),
+      });
       return;
     }
 
@@ -1340,6 +1372,7 @@ async function handleApi(req, res, pathname) {
         removed: products.length,
         missing: missingIds.length,
         missingIds,
+        rebuild: products.length ? await triggerSiteRebuild(req) : "disabled",
       });
       return;
     }
@@ -1388,14 +1421,20 @@ async function handleApi(req, res, pathname) {
         { _id: existingProduct._id },
         { $set: nextProduct },
       );
-      sendJson(res, 200, { product: serializeProduct(nextProduct) });
+      sendJson(res, 200, {
+        product: serializeProduct(nextProduct),
+        rebuild: await triggerSiteRebuild(req),
+      });
       return;
     }
 
     if (req.method === "DELETE") {
       await productsCollection.deleteOne({ _id: existingProduct._id });
       await deleteUploadedImage(existingProduct.imageId);
-      sendJson(res, 200, { product: serializeProduct(existingProduct) });
+      sendJson(res, 200, {
+        product: serializeProduct(existingProduct),
+        rebuild: await triggerSiteRebuild(req),
+      });
       return;
     }
   }
@@ -1606,6 +1645,7 @@ export const __test__ = {
   resolveStaticFile,
   routeUsesDatabase,
   stripImageMetadata,
+  triggerSiteRebuild,
   validateContactPayload,
   validateFailurePayload,
   validateProductPayload,
