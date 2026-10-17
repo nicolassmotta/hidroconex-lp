@@ -43,7 +43,7 @@ mexer no código.
 ```
 .
 ├── api/            # Entrada da API na Vercel (reaproveita o backend Node)
-├── server/         # Servidor Node + lógica da API (catálogo, admin, imagens)
+├── server/         # API em módulos (api, auth, catalog, contact, db, images...) + servidor Node
 ├── scripts/        # Scripts de build/dev (ex.: geração do catálogo)
 ├── src/
 │   ├── assets/     # Imagens e mídias
