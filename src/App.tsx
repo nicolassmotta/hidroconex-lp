@@ -1,55 +1,56 @@
-import { useEffect } from "react";
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import Seo from "@/components/Seo";
-import { catalogCategories } from "@/data/categories";
+import { lazy, Suspense, useEffect, type ReactNode } from "react";
+import CatalogProvider from "@/components/CatalogProvider";
+import type { CatalogItem } from "@/lib/catalog";
 import { initFailureMonitoring } from "@/lib/failureMonitoring";
+import { resolveRoute } from "@/lib/routes";
+import { SeoCollectorContext, type SeoCollector } from "@/lib/seoCollector";
 
-import AdminPage from "./pages/Admin";
 import CatalogPage from "./pages/Catalog";
 import Index from "./pages/Index";
+import NotFound from "./pages/NotFound";
 import ProductDetail from "./pages/ProductDetail";
 
-function getRoute() {
-  return window.location.pathname.replace(/\/+$/, "") || "/";
+const AdminRoute = lazy(() => import("./pages/AdminRoute"));
+
+interface AppProps {
+  /** Caminho da página; no navegador vem de window.location, no build vem do prerender. */
+  url?: string;
+  initialCatalog?: CatalogItem[];
+  seoCollector?: SeoCollector | null;
 }
 
-const App = () => {
-  const route = getRoute();
-  const catalogMatch = route.match(/^\/catalogo\/([^/]+)$/);
-  const productMatch = route.match(/^\/produto\/([^/]+)$/);
-  const categoryFromRoute = catalogMatch
-    ? catalogCategories.find((category) => category.slug === decodeURIComponent(catalogMatch[1]))
-    : null;
+const App = ({ url, initialCatalog, seoCollector = null }: AppProps) => {
+  const route = resolveRoute(url ?? window.location.pathname);
 
   useEffect(() => {
     initFailureMonitoring();
   }, []);
 
-  return (
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      {route === "/catalogo" || catalogMatch ? (
-        <CatalogPage initialCategoryId={categoryFromRoute?.id} />
-      ) : productMatch ? (
-        <ProductDetail slug={decodeURIComponent(productMatch[1])} />
-      ) : route === "/admin" ? (
-        <>
-          <Seo
-            title="Painel Hidroconex"
-            description="Área administrativa da Hidroconex."
-            path="/admin"
-            robots="noindex,nofollow"
-          />
-          <AdminPage />
-        </>
-      ) : (
-        <Index />
-      )}
-    </TooltipProvider>
-  );
+  let page: ReactNode;
+
+  if (route.name === "admin") {
+    page = (
+      <Suspense fallback={null}>
+        <AdminRoute />
+      </Suspense>
+    );
+  } else if (route.name === "not-found") {
+    page = <NotFound />;
+  } else {
+    page = (
+      <CatalogProvider initialProducts={initialCatalog}>
+        {route.name === "home" ? (
+          <Index />
+        ) : route.name === "catalog" ? (
+          <CatalogPage initialCategoryId={route.categoryId} />
+        ) : (
+          <ProductDetail slug={route.slug} />
+        )}
+      </CatalogProvider>
+    );
+  }
+
+  return <SeoCollectorContext.Provider value={seoCollector}>{page}</SeoCollectorContext.Provider>;
 };
 
 export default App;

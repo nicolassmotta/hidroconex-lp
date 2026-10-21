@@ -1,16 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import HCaptcha from "@hcaptcha/react-hcaptcha";
-
-const toMinutes = (hours: number, minutes: number) => hours * 60 + minutes;
-
-const formatTime = (totalMinutes: number) =>
-  `${String(Math.floor(totalMinutes / 60)).padStart(2, "0")}:${String(totalMinutes % 60).padStart(2, "0")}`;
-
-// Fonte única de horários: alimenta tanto os textos exibidos quanto o status "aberto agora".
-const businessHours = {
-  morning: { start: toMinutes(7, 30), end: toMinutes(11, 30) },
-  afternoon: { start: toMinutes(12, 42), end: toMinutes(17, 0), endFriday: toMinutes(16, 0) },
-};
+import { businessHours, formatTime } from "@/data/company";
 
 const formatDayRange = (afternoonEnd: number) =>
   `${formatTime(businessHours.morning.start)} às ${formatTime(businessHours.morning.end)} | ${formatTime(businessHours.afternoon.start)} às ${formatTime(afternoonEnd)}`;
@@ -61,7 +51,8 @@ const contactDetails = [
 ];
 
 const Contact = () => {
-  const [isOpen, setIsOpen] = useState(false);
+  // null até o navegador calcular: o HTML gerado no build não deve afirmar aberto/fechado.
+  const [isOpen, setIsOpen] = useState<boolean | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<{
     type: "success" | "error";
@@ -69,6 +60,32 @@ const Contact = () => {
   } | null>(null);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const captchaRef = useRef<HCaptcha>(null);
+  const formRef = useRef<HTMLFormElement>(null);
+  // O hCaptcha (script e cookies de terceiros) só carrega quando o formulário chega perto da
+  // tela ou recebe foco, e não em toda visita à home.
+  const [shouldLoadCaptcha, setShouldLoadCaptcha] = useState(false);
+
+  useEffect(() => {
+    const form = formRef.current;
+    if (!form || shouldLoadCaptcha) return;
+
+    if (!("IntersectionObserver" in window)) {
+      setShouldLoadCaptcha(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setShouldLoadCaptcha(true);
+        }
+      },
+      { rootMargin: "300px" },
+    );
+    observer.observe(form);
+
+    return () => observer.disconnect();
+  }, [shouldLoadCaptcha]);
 
   useEffect(() => {
     const checkStatus = () => {
@@ -152,7 +169,7 @@ const Contact = () => {
                   ))}
                 </div>
 
-                {isOpen ? (
+                {isOpen === null ? null : isOpen ? (
                   <div className="mt-4 pt-4 border-t border-muted/20 flex items-center gap-2 animate-fade-in">
                     <span className="relative flex h-2 w-2">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
@@ -181,6 +198,8 @@ const Contact = () => {
             </h3>
 
             <form
+              ref={formRef}
+              onFocus={() => setShouldLoadCaptcha(true)}
               className="space-y-5"
               onSubmit={async (event) => {
                 event.preventDefault();
@@ -319,14 +338,17 @@ const Contact = () => {
               )}
 
               <div className="w-full overflow-x-auto pb-1">
-                <div className="min-w-[303px]">
-                  <HCaptcha
-                    ref={captchaRef}
-                    sitekey="50b2fe65-b00b-4b9e-ad62-3ba471098be2"
-                    reCaptchaCompat={false}
-                    onVerify={(token) => setCaptchaToken(token)}
-                    onExpire={() => setCaptchaToken(null)}
-                  />
+                {/* Altura do widget reservada para o formulário não pular quando ele carrega. */}
+                <div className="min-h-[78px] min-w-[303px]">
+                  {shouldLoadCaptcha && (
+                    <HCaptcha
+                      ref={captchaRef}
+                      sitekey="50b2fe65-b00b-4b9e-ad62-3ba471098be2"
+                      reCaptchaCompat={false}
+                      onVerify={(token) => setCaptchaToken(token)}
+                      onExpire={() => setCaptchaToken(null)}
+                    />
+                  )}
                 </div>
               </div>
 

@@ -1,7 +1,8 @@
 import heroImage from "@/assets/AI/hero-industrial.webp";
+import { companyAgeInYears } from "@/data/company";
 
 const heroStats = [
-  { value: "14 anos", label: "de fabricação industrial" },
+  { value: `${companyAgeInYears()} anos`, label: "de fabricação industrial" },
   { value: "100%", label: "produção própria" },
   { value: "+150", label: "clientes atendidos" },
 ];
@@ -16,7 +17,8 @@ const Hero = () => {
         <img
           src={heroImage}
           alt="Luvas de aço carbono e conexões industriais Hidroconex — fabricação própria"
-          fetchPriority="high"
+          // Minúsculo: o React 18 não conhece fetchPriority e avisa no console.
+          {...{ fetchpriority: "high" }}
           decoding="async"
           className="h-full w-full object-cover object-center"
         />
@@ -56,8 +58,11 @@ const Hero = () => {
 
           <div className="mt-16 grid max-w-3xl grid-cols-1 border-y border-white/20 sm:grid-cols-3">
             {heroStats.map((item) => (
-              <div key={item.value} className="py-5 sm:border-r sm:border-white/20 sm:px-6 first:pl-0 last:border-r-0">
-                <p className="text-2xl font-bold text-primary">{item.value}</p>
+              <div key={item.label} className="py-5 sm:border-r sm:border-white/20 sm:px-6 first:pl-0 last:border-r-0">
+                {/* A idade da empresa sai do build no HTML estático e é recalculada no navegador. */}
+                <p className="text-2xl font-bold text-primary" suppressHydrationWarning>
+                  {item.value}
+                </p>
                 <p className="mt-1 text-sm text-secondary-foreground/70">{item.label}</p>
               </div>
             ))}

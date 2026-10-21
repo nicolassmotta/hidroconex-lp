@@ -1,5 +1,9 @@
 import { catalogData as staticCatalogData } from "@/data/catalog";
 import { getCategoryMeta } from "@/data/categories";
+import { whatsappUrl } from "@/data/company";
+
+/** Id do <script type="application/json"> com o catálogo usado na pré-renderização. */
+export const CATALOG_SNAPSHOT_ID = "catalog-snapshot";
 
 export interface CatalogItem {
   id: string;
@@ -12,10 +16,14 @@ export interface CatalogItem {
   description?: string;
   createdAt?: string;
   updatedAt?: string;
+  /** Ids anteriores (produto renomeado no admin); as URLs antigas redirecionam para a atual. */
+  previousIds?: string[];
 }
 
 interface FetchCatalogOptions {
   fallbackToStatic?: boolean;
+  /** Ignora o cache da CDN (o admin precisa ver a edição que acabou de salvar). */
+  fresh?: boolean;
 }
 
 export interface AppConfig {
@@ -46,6 +54,12 @@ function validPositiveNumber(value: unknown): value is number {
 }
 
 const optimizedProductImages = import.meta.glob("/src/assets/ProductsOptimized/**/*.webp", {
+  eager: true,
+  import: "default",
+}) as Record<string, string>;
+
+// Miniaturas de 480 px geradas por scripts/optimizeImages.js para os cards.
+const productThumbnails = import.meta.glob("/src/assets/ProductsThumbs/**/*.webp", {
   eager: true,
   import: "default",
 }) as Record<string, string>;
@@ -82,11 +96,11 @@ export function normalizeSearchText(value?: string) {
     .toLowerCase();
 }
 
-function optimizedPathFor(importPath?: string) {
+function optimizedPathFor(importPath?: string, outputDir = "ProductsOptimized") {
   if (!importPath) return "";
   return importPath
     .replace(/^\./, "")
-    .replace("/src/assets/Products/", "/src/assets/ProductsOptimized/")
+    .replace("/src/assets/Products/", `/src/assets/${outputDir}/`)
     .replace(/\.png$/i, ".webp");
 }
 
@@ -129,11 +143,29 @@ export function resolveCatalogImage(product: Pick<CatalogItem, "imageUrl" | "imp
   return resolveStaticImage(product.importPath) || "/placeholder.svg";
 }
 
-function staticCatalog(): CatalogItem[] {
-  return staticCatalogData.map((product) => ({
-    ...product,
-    imageUrl: "",
-  })).map(normalizeCatalogItem);
+/** Imagem menor para cards; fotos enviadas pelo admin (GridFS) não têm miniatura. */
+export function resolveCatalogThumbnail(
+  product: Pick<CatalogItem, "imageUrl" | "importPath">,
+): string {
+  if (product.imageUrl) return product.imageUrl;
+
+  return (
+    findImageByPath(productThumbnails, optimizedPathFor(product.importPath, "ProductsThumbs")) ||
+    resolveCatalogImage(product)
+  );
+}
+
+export function normalizeCatalog(products: CatalogItem[]): CatalogItem[] {
+  return products.map(normalizeCatalogItem);
+}
+
+export function staticCatalog(): CatalogItem[] {
+  return normalizeCatalog(
+    staticCatalogData.map((product) => ({
+      ...product,
+      imageUrl: "",
+    })),
+  );
 }
 
 function catalogErrorFromResponse(status: number, data: unknown): Error {
@@ -150,10 +182,10 @@ function catalogErrorFromResponse(status: number, data: unknown): Error {
 }
 
 export async function fetchCatalog(options: FetchCatalogOptions = {}): Promise<CatalogItem[]> {
-  const { fallbackToStatic = true } = options;
+  const { fallbackToStatic = true, fresh = false } = options;
 
   try {
-    const response = await fetch("/api/catalog", {
+    const response = await fetch(fresh ? "/api/catalog?fresh=1" : "/api/catalog", {
       headers: { Accept: "application/json" },
     });
 
@@ -164,7 +196,7 @@ export async function fetchCatalog(options: FetchCatalogOptions = {}): Promise<C
 
     const data = await response.json().catch(() => null);
     if (data && Array.isArray(data.products)) {
-      return data.products.map(normalizeCatalogItem);
+      return normalizeCatalog(data.products);
     }
 
     throw new Error("Resposta invalida da API de catalogo.");
@@ -223,5 +255,11 @@ export function productSearchText(product: CatalogItem) {
     ]
       .filter(Boolean)
       .join(" "),
+  );
+}
+
+export function productQuoteUrl(product: Pick<CatalogItem, "model">) {
+  return whatsappUrl(
+    `Olá! Vim pelo site da Hidroconex e gostaria de solicitar orçamento do produto: ${product.model}.`,
   );
 }

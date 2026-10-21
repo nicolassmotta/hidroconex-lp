@@ -1,5 +1,8 @@
 // @vitest-environment node
-import { describe, expect, it } from "vitest";
+import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { __test__ } from "./server.js";
 
 describe("server helpers", () => {
@@ -9,6 +12,50 @@ describe("server helpers", () => {
     expect(__test__.routeUsesDatabase("GET", "/api/ready")).toBe(true);
     expect(__test__.routeUsesDatabase("GET", "/api/catalog")).toBe(true);
     expect(__test__.routeUsesDatabase("POST", "/api/monitoring/failures")).toBe(true);
+  });
+
+  it("caches the public catalog at the CDN but not fresh reads", () => {
+    const request = (url) => ({ url, headers: { host: "localhost" } });
+
+    expect(__test__.catalogCacheControl(request("/api/catalog"))).toContain("s-maxage=60");
+    expect(__test__.catalogCacheControl(request("/api/catalog?fresh=1"))).toBe("no-store");
+  });
+
+  it("keeps the previous ids of a renamed product", () => {
+    expect(__test__.nextPreviousIds({ id: "rm-luvas-luva-3", previousIds: [] }, "rm-luvas-luva-3-x-30mm")).toEqual([
+      "rm-luvas-luva-3",
+    ]);
+    expect(
+      __test__.nextPreviousIds({ id: "b", previousIds: ["a"] }, "c"),
+    ).toEqual(["a", "b"]);
+    // Voltar ao nome antigo não deixa o id atual na lista de redirects.
+    expect(__test__.nextPreviousIds({ id: "b", previousIds: ["a"] }, "a")).toEqual(["b"]);
+    expect(__test__.nextPreviousIds({ id: "a" }, "a")).toEqual([]);
+  });
+
+  describe("site rebuild after catalog changes", () => {
+    afterEach(() => {
+      delete process.env.VERCEL_DEPLOY_HOOK_URL;
+      vi.unstubAllGlobals();
+    });
+
+    it("does nothing without a deploy hook", async () => {
+      const fetchMock = vi.fn();
+      vi.stubGlobal("fetch", fetchMock);
+
+      expect(await __test__.triggerSiteRebuild({ headers: {} })).toBe("disabled");
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it("posts to the deploy hook and reports failures", async () => {
+      process.env.VERCEL_DEPLOY_HOOK_URL = "https://api.vercel.com/v1/integrations/deploy/prj_x/abc";
+      const fetchMock = vi.fn().mockResolvedValueOnce({ ok: true }).mockResolvedValueOnce({ ok: false, status: 429 });
+      vi.stubGlobal("fetch", fetchMock);
+
+      expect(await __test__.triggerSiteRebuild({ headers: {} })).toBe("started");
+      expect(fetchMock).toHaveBeenCalledWith(process.env.VERCEL_DEPLOY_HOOK_URL, expect.objectContaining({ method: "POST" }));
+      expect(await __test__.triggerSiteRebuild({ headers: {} })).toBe("failed");
+    });
   });
 
   it("validates product payloads", () => {
@@ -69,5 +116,47 @@ describe("server helpers", () => {
     ).toMatchObject({ ok: true });
 
     expect(__test__.validateFailurePayload({ message: "" })).toMatchObject({ ok: false });
+  });
+
+  it("serves prerendered pages, the app shell and a real 404 like vercel.json", async () => {
+    const distDir = await fs.mkdtemp(path.join(os.tmpdir(), "hidroconex-dist-"));
+    await fs.mkdir(path.join(distDir, "produto", "luva-3"), { recursive: true });
+    await fs.mkdir(path.join(distDir, "catalogo"), { recursive: true });
+    await fs.writeFile(path.join(distDir, "index.html"), "home");
+    await fs.writeFile(path.join(distDir, "catalogo", "index.html"), "catalogo");
+    await fs.writeFile(path.join(distDir, "produto", "luva-3", "index.html"), "luva");
+    await fs.writeFile(path.join(distDir, "sitemap.xml"), "<urlset />");
+
+    const resolve = (pathname) => __test__.resolveStaticFile(pathname, distDir);
+
+    try {
+      expect(await resolve("/")).toEqual({ filePath: path.join(distDir, "index.html"), statusCode: 200 });
+      expect(await resolve("/catalogo/")).toEqual({
+        filePath: path.join(distDir, "catalogo", "index.html"),
+        statusCode: 200,
+      });
+      expect(await resolve("/produto/luva-3")).toEqual({
+        filePath: path.join(distDir, "produto", "luva-3", "index.html"),
+        statusCode: 200,
+      });
+      expect(await resolve("/sitemap.xml")).toEqual({
+        filePath: path.join(distDir, "sitemap.xml"),
+        statusCode: 200,
+      });
+      expect(await resolve("/produto/novo-produto")).toEqual({
+        filePath: path.join(distDir, "app-shell.html"),
+        statusCode: 200,
+      });
+      expect(await resolve("/admin")).toEqual({
+        filePath: path.join(distDir, "app-shell.html"),
+        statusCode: 200,
+      });
+      expect(await resolve("/pagina-que-nao-existe")).toEqual({
+        filePath: path.join(distDir, "404.html"),
+        statusCode: 404,
+      });
+    } finally {
+      await fs.rm(distDir, { recursive: true, force: true });
+    }
   });
 });

@@ -29,25 +29,37 @@ test("public pages render and catalog search filters products", async ({ page })
 
   await page.goto("/");
   await expect(page).toHaveTitle(/Hidroconex/);
-  await expect(page.getByRole("heading", { name: /conexões/i })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: /conexões/i })).toBeVisible();
   await expect(page.getByRole("link", { name: /catálogo/i }).first()).toBeVisible();
 
   await page.goto("/catalogo");
-  await expect(page.getByRole("heading", { name: /peças industriais/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /catálogo de luvas/i })).toBeVisible();
 
   const search = page.getByRole("searchbox", { name: /buscar produtos/i });
   await search.fill("reservatorio");
   await expect(page.getByText(/luva/i).first()).toBeVisible();
 
   await page.goto("/catalogo?categoria=invalida");
-  await expect(page.getByRole("heading", { name: /peças industriais/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /catálogo de luvas/i })).toBeVisible();
   await expect(page.getByText("Luva 2\"").first()).toBeVisible();
 
+  await page.goto("/catalogo?categoria=rm-luvas");
+  await expect(page).toHaveURL(/\/catalogo\/luvas-de-aco-para-reservatorios-metalicos$/);
+
   await page.goto("/catalogo/luvas-de-aco-para-reservatorios-metalicos");
-  await expect(page.getByRole("heading", { name: /luvas de a/i })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: /luvas de aço para reservatórios/i })).toBeVisible();
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+    "href",
+    "https://hidroconexluvas.com.br/catalogo/luvas-de-aco-para-reservatorios-metalicos",
+  );
 
   await page.goto("/produto/rm-luvas-luva-2");
-  await expect(page.getByRole("heading", { name: /luva 2/i })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: /luva 2/i })).toBeVisible();
+  await expect(page).toHaveTitle('Luva 2" para Reservatórios Metálicos | Hidroconex');
+
+  await page.goto("/pagina-que-nao-existe");
+  await expect(page.getByRole("heading", { name: /página não encontrada/i })).toBeVisible();
+  await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", "noindex,follow");
 
   await page.goto("/admin");
   await expect(page.getByRole("heading", { name: /painel hidroconex/i })).toBeVisible();
@@ -90,7 +102,7 @@ test("authenticated admin renders monitoring and catalog controls", async ({ pag
     });
   });
 
-  await page.route("**/api/catalog", async (route) => {
+  await page.route(/\/api\/catalog(\?|$)/, async (route) => {
     await route.fulfill({
       contentType: "application/json",
       body: JSON.stringify({

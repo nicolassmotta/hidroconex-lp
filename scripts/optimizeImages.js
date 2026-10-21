@@ -8,22 +8,26 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ROOT_DIR = path.resolve(__dirname, "..");
 const SOURCE_DIR = path.join(ROOT_DIR, "src/assets/Products");
-const OUTPUT_DIR = path.join(ROOT_DIR, "src/assets/ProductsOptimized");
-const MAX_SIZE = 900;
 const WEBP_QUALITY = 82;
+const VARIANTS = [
+  // Página do produto, Open Graph e sitemap.
+  { outputDir: path.join(ROOT_DIR, "src/assets/ProductsOptimized"), maxSize: 900 },
+  // Cards do catálogo e da home: exibidos com ~184 px de altura, 480 px cobre telas retina.
+  { outputDir: path.join(ROOT_DIR, "src/assets/ProductsThumbs"), maxSize: 480 },
+];
 
 function toPosixPath(filePath) {
   return filePath.split(path.sep).join("/");
 }
 
-function outputPathFor(sourceFile) {
+function outputPathFor(sourceFile, outputDir) {
   const relative = path.relative(SOURCE_DIR, sourceFile);
   const parsed = path.parse(relative);
-  return path.join(OUTPUT_DIR, parsed.dir, `${parsed.name}.webp`);
+  return path.join(outputDir, parsed.dir, `${parsed.name}.webp`);
 }
 
-async function optimizeImage(sourceFile) {
-  const outputFile = outputPathFor(sourceFile);
+async function optimizeImage(sourceFile, { outputDir, maxSize }) {
+  const outputFile = outputPathFor(sourceFile, outputDir);
   await fs.ensureDir(path.dirname(outputFile));
 
   const sourceStat = await fs.stat(sourceFile);
@@ -38,8 +42,8 @@ async function optimizeImage(sourceFile) {
   await sharp(sourceFile)
     .rotate()
     .resize({
-      width: MAX_SIZE,
-      height: MAX_SIZE,
+      width: maxSize,
+      height: maxSize,
       fit: "inside",
       withoutEnlargement: true,
     })
@@ -61,17 +65,19 @@ async function main() {
   let optimizedBytes = 0;
 
   for (const file of files) {
-    const result = await optimizeImage(file);
-    if (result.skipped) {
-      skipped += 1;
-    } else {
-      optimized += 1;
-    }
+    for (const variant of VARIANTS) {
+      const result = await optimizeImage(file, variant);
+      if (result.skipped) {
+        skipped += 1;
+      } else {
+        optimized += 1;
+      }
 
-    const sourceStat = await fs.stat(result.sourceFile);
-    const outputStat = await fs.stat(result.outputFile);
-    originalBytes += sourceStat.size;
-    optimizedBytes += outputStat.size;
+      const sourceStat = await fs.stat(result.sourceFile);
+      const outputStat = await fs.stat(result.outputFile);
+      originalBytes += sourceStat.size;
+      optimizedBytes += outputStat.size;
+    }
   }
 
   const savedBytes = Math.max(0, originalBytes - optimizedBytes);

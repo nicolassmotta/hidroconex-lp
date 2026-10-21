@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
 interface ProductImageFrameProps {
@@ -19,10 +19,14 @@ const ProductImageFrame = ({
   const isPlaceholder = !src || src.includes("placeholder.svg");
   const [hasError, setHasError] = useState(isPlaceholder);
   const [isLoaded, setIsLoaded] = useState(false);
+  const imageRef = useRef<HTMLImageElement>(null);
 
   useEffect(() => {
     setHasError(isPlaceholder);
-    setIsLoaded(false);
+    // No HTML pré-renderizado a imagem pode terminar de carregar antes da hidratação,
+    // e aí o onLoad nunca dispara.
+    const image = imageRef.current;
+    setIsLoaded(Boolean(!isPlaceholder && image?.complete && image.naturalWidth > 0));
   }, [isPlaceholder, src]);
 
   return (
@@ -50,12 +54,12 @@ const ProductImageFrame = ({
               className="absolute inset-5 flex items-center justify-center rounded-md bg-white/60 text-center shadow-inner"
               aria-hidden="true"
             >
-              <span className="text-[0.65rem] font-bold uppercase tracking-[0.24em] text-lime-dark/50">
-                Hidroconex
-              </span>
+              {/* Texto via CSS: não entra no conteúdo indexado de cada card. */}
+              <span className="text-[0.65rem] font-bold uppercase tracking-[0.24em] text-lime-dark/50 before:content-['Hidroconex']" />
             </div>
           )}
           <img
+            ref={imageRef}
             src={src}
             alt={alt}
             loading={loading}

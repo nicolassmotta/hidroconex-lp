@@ -1,3 +1,5 @@
+import { companyAgeInYears } from "@/data/company";
+
 const stats = [
   { value: "01", label: "Leitura da aplicação", detail: "Entendimento de medida, rosca, pressão e uso final." },
   { value: "02", label: "Fabricação e usinagem", detail: "Processo próprio com controle dimensional." },
@@ -20,9 +22,9 @@ const About = () => {
             </h2>
 
             <div className="space-y-4 text-muted-foreground leading-relaxed">
-              <p>
+              <p suppressHydrationWarning>
                 A <strong className="text-foreground">Hidroconex Indústria e Comércio Ltda</strong> é
-                uma fabricante estabelecida na região de São José do Rio Preto há 14 anos,
+                uma fabricante estabelecida na região de São José do Rio Preto há {companyAgeInYears()} anos,
                 especializada na produção de luvas de aço carbono, conexões e componentes industriais.
               </p>
               <p>

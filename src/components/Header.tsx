@@ -1,10 +1,14 @@
 import { useState, useEffect } from "react";
 import BrandLogo from "@/components/BrandLogo";
 
-const Header = () => {
+interface HeaderProps {
+  /** Na home os links de seção usam só a âncora; nas outras páginas voltam para "/". */
+  isHome?: boolean;
+}
+
+const Header = ({ isHome = false }: HeaderProps) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const isHome = window.location.pathname === "/";
 
   useEffect(() => {
     const handleScroll = () => {

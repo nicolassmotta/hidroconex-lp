@@ -4,6 +4,7 @@ import {
   normalizeSearchText,
   productSearchText,
   resolveCatalogImage,
+  resolveCatalogThumbnail,
 } from "./catalog";
 
 describe("catalog helpers", () => {
@@ -34,6 +35,17 @@ describe("catalog helpers", () => {
           "./src/assets/Products/Reservatórios Metálicos/Luvas/2. Luva 1-2_/20260203_150703(1).png",
       }),
     ).toMatch(/\.webp$/);
+  });
+
+  it("uses the 480px thumbnail for cards and keeps uploads untouched", () => {
+    const importPath =
+      "./src/assets/Products/Reservatórios Metálicos/Luvas/2. Luva 1-2_/20260203_150703(1).png";
+
+    expect(resolveCatalogThumbnail({ importPath })).toMatch(/ProductsThumbs\/.*\.webp$/);
+    expect(resolveCatalogThumbnail({ importPath })).not.toBe(resolveCatalogImage({ importPath }));
+    expect(resolveCatalogThumbnail({ imageUrl: "/api/catalog/images/abc", importPath: "" })).toBe(
+      "/api/catalog/images/abc",
+    );
   });
 
   it("falls back to the static catalog when the API is unavailable", async () => {

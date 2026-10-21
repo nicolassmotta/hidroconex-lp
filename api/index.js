@@ -1,4 +1,4 @@
-import { handleApiRequest } from "../server/server.js";
+import { handleApiRequest } from "../server/api.js";
 
 export const config = {
   api: {
