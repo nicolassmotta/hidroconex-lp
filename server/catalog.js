@@ -31,6 +31,10 @@ export async function readCatalog() {
 // Deploy Hook da Vercel (Settings > Git > Deploy Hooks): cada alteração no catálogo dispara
 // um build novo, que regera o HTML estático e o sitemap. A Vercel cancela o build anterior
 // do mesmo hook, então várias edições seguidas terminam num deploy só.
+// O hook responde 201 só depois de criar o deploy, em ~7 s: com 5 s o build começava,
+// mas o admin avisava que a atualização tinha falhado.
+const DEPLOY_HOOK_TIMEOUT_MS = 20_000;
+
 export async function triggerSiteRebuild(req) {
   const hookUrl = process.env.VERCEL_DEPLOY_HOOK_URL;
   if (!hookUrl) return "disabled";
@@ -38,7 +42,7 @@ export async function triggerSiteRebuild(req) {
   try {
     const response = await fetch(hookUrl, {
       method: "POST",
-      signal: AbortSignal.timeout(5000),
+      signal: AbortSignal.timeout(DEPLOY_HOOK_TIMEOUT_MS),
     });
     if (!response.ok) {
       throw new Error(`Deploy Hook respondeu HTTP ${response.status}.`);
